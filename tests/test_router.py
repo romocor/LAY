@@ -17,8 +17,8 @@ def test_niveles():
 
 def test_modelos_por_proveedor_gratis_por_defecto():
     cfg = {"proveedor": "ollama", "modelos": {}}
-    assert proveedores.modelo_para("ollama", "rapido", cfg) == "qwen2.5:3b"
-    assert proveedores.modelo_para("ollama", "profundo", cfg) == "qwen2.5:7b"
+    assert proveedores.modelo_para("ollama", "rapido", cfg) == "lay-rapido"
+    assert proveedores.modelo_para("ollama", "profundo", cfg) == "lay"
     cfg["modelos"] = {"ollama": {"profundo": "qwen2.5:14b"}}  # el usuario puede cambiarlo
     assert proveedores.modelo_para("ollama", "profundo", cfg) == "qwen2.5:14b"
 

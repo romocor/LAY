@@ -112,11 +112,41 @@ def lanzador(a: argparse.Namespace) -> None:
     if not a.sin_camara:
         procs.append(_popen(comando_rol("gestos")))
     procs.append(_popen(comando_rol("voz", *(["--texto"] if a.texto else []))))
+    from lay_core import bandeja, bus
+
+    estado = {"camara": not a.sin_camara, "microfono": True, "gestos": procs[1] if not a.sin_camara else None}
+
+    def alternar_camara():
+        if estado["camara"] and estado["gestos"]:
+            estado["gestos"].terminate()
+            estado["camara"] = False
+        else:
+            estado["gestos"] = _popen(comando_rol("gestos"))
+            procs.append(estado["gestos"])
+            estado["camara"] = True
+        bus.publicar("hud.camara", ok=estado["camara"], pausada=not estado["camara"])
+
+    def alternar_microfono():
+        estado["microfono"] = not estado["microfono"]
+        bus.publicar("voz.microfono", activo=estado["microfono"])
+
+    # Versión nueva en GitHub Releases (solo si el repositorio es público)
+    repo = CONFIG.__dict__.get("actualizaciones", {}).get("repo", "romocor/LAY")
+    bandeja.revisar_en_fondo(
+        _version(),
+        repo,
+        lambda n: bus.publicar(
+            "hud.panel",
+            titulo="Actualización disponible",
+            items=[{"titulo": f"LAY {n['version']} ya está disponible", "detalle": n["url"], "etiqueta": "nuevo"}],
+            segundos=40,
+        ),
+    )
     try:
         import webview
 
         class Api:
-            """Expuesta al overlay como window.pywebview.api (modo mouse)."""
+            """Expuesta al overlay como window.pywebview.api (modo mouse, bandeja)."""
 
             def minimizar(self):
                 ventana.minimize()
@@ -125,7 +155,19 @@ def lanzador(a: argparse.Namespace) -> None:
                 ventana.restore()
 
         ventana = webview.create_window("LAY", HUB_URL, fullscreen=True, background_color="#020b11", js_api=Api())
+        icono = bandeja.iniciar_bandeja(
+            {
+                "abrir": lambda: ventana.restore(),
+                "configuracion": lambda: bus.publicar("hud.config", seccion="ia"),
+                "camara": alternar_camara,
+                "microfono": alternar_microfono,
+                "salir": lambda: ventana.destroy(),
+            },
+            lambda: estado,
+        )
         webview.start()
+        if icono is not None:
+            icono.stop()
     except ImportError:
         import webbrowser
 
@@ -137,6 +179,17 @@ def lanzador(a: argparse.Namespace) -> None:
             p.terminate()
 
 
+def _version() -> str:
+    try:
+        import tomllib
+
+        from lay_core.config import ROOT
+
+        return tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["version"]
+    except Exception:
+        return "0"
+
+
 def main() -> None:
     multiprocessing.freeze_support()
     ap = argparse.ArgumentParser(prog="LAY")
@@ -146,7 +199,7 @@ def main() -> None:
     ap.add_argument("--version", action="store_true")
     a, resto = ap.parse_known_args()
     if a.version:
-        print("LAY 2.5.0")
+        print(f"LAY {_version()}")
         return
     if a.rol:
         ejecutar_rol(a.rol, resto + (["--texto"] if a.texto else []))

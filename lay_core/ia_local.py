@@ -235,9 +235,21 @@ def preparar(progreso: Progreso = _nada, modelos: dict | None = None) -> dict:
     for m in rec["descargar"]:
         if m not in instalados:
             descargar_modelo(m, progreso)
-    config.guardar({"ia": {"modelos": {"ollama": rec["modelos"]}}})
-    progreso("listo", 100, "IA local lista. Gratis y sin internet.")
-    return {"ok": True, **rec}
+    # La IA propia de LAY: modelos "lay-rapido" y "lay" con su identidad y contexto de 8k
+    modelos = dict(rec["modelos"])
+    try:
+        from lay_core import modelo_lay
+
+        exe = ollama_exe()
+        for nombre, d in modelo_lay.nombres(rec["modelos"]).items():
+            progreso(f"modelo:{nombre}", 50, f"Creando la IA de LAY ({nombre} sobre {d['base']})…")
+            modelo_lay.crear(exe, nombre, d["base"], d["profundo"])
+        modelos = {"rapido": "lay-rapido", "normal": "lay-rapido", "profundo": "lay"}
+    except Exception as exc:  # si falla, LAY sigue con los modelos base (funciona igual, sin personalidad propia)
+        progreso("aviso", 100, f"Uso los modelos base ({exc})"[:120])
+    config.guardar({"ia": {"modelos": {"ollama": modelos}}})
+    progreso("listo", 100, "IA local de LAY lista. Gratis y sin internet.")
+    return {"ok": True, **rec, "modelos": modelos}
 
 
 def main() -> None:

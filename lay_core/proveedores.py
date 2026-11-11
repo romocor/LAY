@@ -26,7 +26,7 @@ import httpx
 # ---------------- modelos por nivel ----------------
 # Niveles del router: rapido (1 acción), normal (buscar + actuar), profundo (redactar/analizar).
 MODELOS_DEFECTO: dict[str, dict[str, str]] = {
-    "ollama": {"rapido": "qwen2.5:3b", "normal": "qwen2.5:3b", "profundo": "qwen2.5:7b"},
+    "ollama": {"rapido": "lay-rapido", "normal": "lay-rapido", "profundo": "lay"},  # IA propia (modelo_lay.py)
     "gemini": {"rapido": "gemini-2.5-flash-lite", "normal": "gemini-2.5-flash-lite", "profundo": "gemini-2.5-flash"},
     "groq": {
         "rapido": "llama-3.1-8b-instant",
@@ -176,10 +176,15 @@ class OpenAICompatible:
         """El modelo configurado; si el proveedor ya no lo ofrece, el más parecido de su lista."""
         deseado = modelo_para(self.nombre, nivel, self.config_ia)
         disponibles = self.modelos_disponibles()
-        if not disponibles or deseado in disponibles:
+        sin_tag = {m.removesuffix(":latest"): m for m in disponibles}  # Ollama lista "lay:latest"
+        if not disponibles or deseado in disponibles or deseado in sin_tag:
             return deseado
         if self.nombre == "ollama":
-            # Local: usa lo que esté descargado (el más grande para profundo, el más chico para rapido)
+            # 1) la IA propia de LAY si existe; 2) lo que esté descargado (grande = profundo, chico = rápido)
+            propio = "lay" if nivel == "profundo" else "lay-rapido"
+            for cand in (propio, "lay", "lay-rapido"):
+                if cand in sin_tag:
+                    return cand
             orden = sorted(disponibles, key=_tamano_modelo)
             return orden[-1] if nivel == "profundo" else orden[0]
         for clave in PREFERENCIAS.get(self.nombre, {}).get(nivel, []):

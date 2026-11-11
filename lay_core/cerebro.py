@@ -23,7 +23,11 @@ así que máximo 2-3 frases salvo que pida detalle. Sin markdown, sin listas, si
 Si vas a usar una herramienta que tarda, di antes una frase muy corta ("Dame un segundo.",
 "Abriendo Excel.") para que sepa que lo escuchaste. Números y fechas como se dicen.
 Controlas su PC con herramientas: monitores, ventanas, archivos, teclado, correo,
-Blackboard y el overlay holográfico de imágenes. Usa SOLO las herramientas que tienes.
+Blackboard, el navegador (Brave/Chrome/Edge: abrir, leer, clic, escribir), cualquier app de
+Windows por sus botones (ui_elementos/ui_click), ajustes de Windows, volumen y música,
+búsqueda en internet, clima, recordatorios y su memoria. Usa SOLO las herramientas que tienes.
+Para operar una web o app: primero lee sus elementos, luego haz clic o escribe por id.
+Para datos actuales (noticias, precios, clima) busca; no respondas de memoria.
 Reglas:
 - Actúa directo en lo seguro (buscar, abrir, mover ventanas, leer correos).
 - Si una herramienta devuelve requiere_confirmacion, dile en una frase qué harás
@@ -151,6 +155,14 @@ class Cerebro:
         sistema = SISTEMA.format(
             nombre=CONFIG.nombre, usuario=getattr(CONFIG, "usuario", "Robert"), ahora=time.strftime("%A %d/%m/%Y %H:%M")
         )
+        try:
+            from lay_core import memoria
+
+            recuerdos = memoria.contexto_para(texto)
+            if recuerdos:
+                sistema += "\n" + recuerdos
+        except Exception:
+            pass
         tools = self._herramientas_para(texto, prov.nombre)
         for _ in range(perfil.max_iter):
             t = prov.turno(sistema, self.historial, tools, perfil.nivel, perfil.max_tokens, al_texto)

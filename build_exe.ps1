@@ -5,7 +5,7 @@
       dist\LAY_portable_<ver>.zip   la carpeta comprimida
       dist\LAY_Setup_<ver>.exe      instalador (si Inno Setup está instalado)
 #>
-param([string]$Version = "2.5.0", [switch]$SinTests)
+param([string]$Version = "2.6.0", [switch]$SinTests)
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 

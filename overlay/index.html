@@ -311,7 +311,7 @@ function conectar(){
       case 'hud.modelo':$('modelo').textContent=ev.nivel.toUpperCase()+' · '+ev.modelo.replace('claude-','');
         $('modelo').className=ev.nivel==='profundo'?'opus':'status';document.body.classList.toggle('opus',ev.nivel==='profundo');break;
       case 'hud.fps':$('fps').textContent=ev.fps+' FPS';$('fps').style.color=ev.fps>=25?'':'var(--warn)';break;
-      case 'hud.camara':if(!ev.ok){$('fps').textContent='SIN SEÑAL';$('fps').style.color='var(--warn)';toast('CÁMARA DESCONECTADA: reintentando')}break;
+      case 'hud.camara':if(ev.pausada){$('fps').textContent='EN PAUSA';break}if(!ev.ok){$('fps').textContent='SIN SEÑAL';$('fps').style.color='var(--warn)';toast('CÁMARA DESCONECTADA: reintentando')}break;
       case 'hud.latencia':$('latencia').textContent=(ev.ms/1000).toFixed(1).replace('.',',')+' s';
         $('latencia').style.color=ev.ms<1500?'':'var(--warn)';break;
       case 'hud.panel':mostrarPanel(ev);break;

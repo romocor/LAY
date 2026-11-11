@@ -55,7 +55,7 @@ def escalar(p: Perfil) -> Perfil | None:
 
 
 # ---------------- herramientas por tema (para modelos locales chicos) ----------------
-BASE = {"abrir", "archivos_abrir_por_nombre", "app_lanzar", "hud_decir"}
+BASE = {"abrir", "archivos_abrir_por_nombre", "app_abrir", "hud_decir"}
 GRUPOS: dict[str, tuple[re.Pattern, set[str]]] = {
     "sistema": (
         re.compile(r"ram|cpu|disco|bater|memoria|proceso|rendimiento|lento|estado (del|de la) (pc|compu)", re.I),
@@ -105,6 +105,66 @@ GRUPOS: dict[str, tuple[re.Pattern, set[str]]] = {
             "outlook_enviar",
             "outlook_enviar_borrador",
             "hud_panel",
+        },
+    ),
+    "navegador": (
+        re.compile(
+            r"naveg|brave|chrome|google|edge|p[aá]gina|web|sitio|youtube|pesta[ñn]a|enlace|link|"
+            r"haz clic|clic en|formulario|inicia sesi[oó]n|\.com|\.pe|\.org",
+            re.I,
+        ),
+        {
+            "navegador_abrir",
+            "navegador_leer",
+            "navegador_elementos",
+            "navegador_click",
+            "navegador_escribir",
+            "navegador_escribir_y_enviar",
+            "navegador_buscar_en_sitio",
+            "navegador_pestanas",
+            "navegador_ir_pestana",
+            "navegador_cerrar_pestana",
+            "navegador_mover",
+        },
+    ),
+    "windows_ui": (
+        re.compile(
+            r"bot[oó]n|men[uú]|pulsa|presiona|ventana de|en (la app|el programa)|configuraci[oó]n de|"
+            r"ajuste|wifi|bluetooth|pantalla|sonido|actualiza|modo oscuro|fondo|instalad|abre (el|la) app",
+            re.I,
+        ),
+        {"ui_elementos", "ui_click", "ui_escribir", "ui_leer_texto", "ajustes_abrir", "app_abrir"},
+    ),
+    "multimedia": (
+        re.compile(
+            r"volumen|sube|baja|silenci|m[uú]sica|canci[oó]n|pausa|siguiente|anterior|brillo|"
+            r"apaga|reinicia|suspend",
+            re.I,
+        ),
+        {"volumen", "multimedia", "brillo", "energia"},
+    ),
+    "informacion": (
+        re.compile(
+            r"qui[eé]n|qu[eé] es|cu[aá]nto|cu[aá]l|noticia|precio|d[oó]lar|clima|tiempo|llover|"
+            r"temperatura|wikipedia|investiga|busca en internet|informaci[oó]n",
+            re.I,
+        ),
+        {"web_buscar", "web_leer", "wikipedia", "clima"},
+    ),
+    "recordatorios": (
+        re.compile(
+            r"recu[eé]rda|recordatorio|alarma|av[ií]same|temporizador|timer|despi[eé]rta|"
+            r"olvida|qu[eé] sabes de|memoria",
+            re.I,
+        ),
+        {
+            "recordatorio_crear",
+            "temporizador",
+            "recordatorios_listar",
+            "recordatorio_borrar",
+            "memoria_guardar",
+            "memoria_buscar",
+            "memoria_olvidar",
         },
     ),
     "universidad": (

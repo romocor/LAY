@@ -14,6 +14,12 @@ lay_core/        ÚNICA implementación de capacidades
   router.py      nivel de esfuerzo (rapido/normal/profundo) + filtro de herramientas por tema
   proveedores.py IA: Ollama LOCAL GRATIS (defecto) · Gemini/Groq gratis con clave · Claude opcional
   ia_local.py    instala Ollama + modelo según RAM/GPU en CUALQUIER PC (rol instalar-ia)
+  modelo_lay.py  la IA propia: modelos Ollama "lay"/"lay-rapido" (identidad, ejemplos, num_ctx 8192)
+  navegador.py   Brave/Chrome/Edge vía CDP (Playwright en hilo propio), perfil ~/.lay/navegador
+  windows.py     UI Automation (pywinauto), apps por nombre, ms-settings, volumen, medios, brillo, energía
+  informacion.py web (DuckDuckGo), Wikipedia, leer página, clima (Open-Meteo) — gratis, sin claves
+  recordatorios.py / memoria.py   alarmas con voz (las dispara el hub) · memoria local sin secretos
+  bandeja.py     icono en la bandeja + aviso de versión nueva
   cerebro.py     bucle agente con cualquier proveedor (historial neutro) + candado de confirmación
   bus.py         publicar eventos al hub
 lay_mcp/server.py  ÚNICA lista de herramientas (MCP stdio o HTTP)

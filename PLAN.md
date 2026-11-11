@@ -118,7 +118,16 @@ Cada fase se ejecuta con `/fase N` (loop planificar → implementar → verifica
 - [ ] Revisión `lay-seguridad` antes de habilitar.
 **Aceptación:** desde el celular fuera de casa: "LAY, ¿cómo está el PC?" responde; sin token → 401.
 
-## Fase 6 — Pulido
+## v2.6.0 — Navegar todo + IA propia + funciones de GitHub
+- [x] IA PROPIA de LAY: modelos Ollama `lay` y `lay-rapido` (Qwen 2.5 + identidad, ejemplos y contexto 8k); se crean al instalar.
+- [x] Navegador: Brave/Chrome/Edge con perfil LAY (abrir, buscar, leer, elementos, clic, escribir, pestañas); pagar/enviar con confirmación; contraseñas nunca.
+- [x] Windows completo: UI Automation (botones/menús de CUALQUIER app por nombre, "Guardar" ≠ "No guardar"), apps instaladas por nombre, ajustes ms-settings, volumen, multimedia, brillo, energía con confirmación.
+- [x] Investigado en GitHub (isair/jarvis, GauravSingh9356/J.A.R.V.I.S, clawdcursor, AnubhavChaturvedi): web gratis (DuckDuckGo + Wikipedia), clima (Open-Meteo), recordatorios/alarmas/temporizadores con voz y notificación, memoria de largo plazo con bloqueo de secretos.
+- [ ] Próximas ideas de GitHub: dictado con tecla (offline, pegar en cualquier app), leer la pantalla con OCR de Windows, visión con cámara (modelo local multimodal), WhatsApp Web, Home Assistant.
+
+## Fase 6 — Pulido  (v2.6.0)
+- [x] Icono en la bandeja: abrir, configuración, pausar cámara/micrófono, salir.
+- [x] Aviso de versión nueva (requiere Releases públicos).
 - [ ] Arranque con Windows (tarea programada o acceso directo en `shell:startup`).
 - [ ] Bandeja del sistema con encender/apagar cámara y micrófono.
 - [ ] `/loop 30m /salud` mientras desarrollas.

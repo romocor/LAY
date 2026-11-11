@@ -230,6 +230,33 @@ async def pagina_remota():
     return FileResponse(ROOT / "overlay" / "remoto.html")
 
 
+@app.on_event("startup")
+async def _tareas_de_fondo():
+    asyncio.create_task(_recordatorios())
+
+
+async def _recordatorios():
+    """Cada 15 s: lo que toca se dice en voz alta, sale en el HUD y como notificación de Windows."""
+    from lay_core import recordatorios
+
+    while True:
+        try:
+            for r in await asyncio.to_thread(recordatorios.vencidos):
+                await difundir({"tipo": "voz.decir", "texto": f"Recordatorio: {r['mensaje']}"})
+                await difundir(
+                    {
+                        "tipo": "hud.panel",
+                        "titulo": "Recordatorio",
+                        "items": [{"titulo": r["mensaje"], "etiqueta": "ahora"}],
+                        "segundos": 60,
+                    }
+                )
+                await asyncio.to_thread(recordatorios.notificar_windows, "LAY · Recordatorio", r["mensaje"])
+        except Exception:
+            pass
+        await asyncio.sleep(15)
+
+
 from loops import hub_api  # noqa: E402  (registra /api/config, /api/ia/*, /api/remoto/*)
 
 hub_api.registrar(app, difundir)

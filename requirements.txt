@@ -17,6 +17,14 @@ mss>=9.0
 pywebview>=5.0
 Pillow>=10.0          # miniaturas del overlay
 qrcode>=7.4           # QR para vincular el celular
+pystray>=0.19         # icono en la bandeja
+
+# Navegar Windows y la web
+playwright>=1.45      # controla Brave/Chrome/Edge instalados (CDP); no descarga navegadores
+pywinauto>=0.6.8      # UI Automation: botones/menús de cualquier app
+pycaw>=20240316       # volumen
+screen-brightness-control>=0.24
+ddgs>=9.0             # búsqueda web gratis (DuckDuckGo)
 
 # Gestos (MediaPipe legacy "solutions" API; fijar versión)
 opencv-python>=4.9

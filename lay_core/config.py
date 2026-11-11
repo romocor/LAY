@@ -53,6 +53,9 @@ class LayConfig:
     apps: dict[str, str] = field(default_factory=dict)
     workspaces: dict[str, list[dict]] = field(default_factory=dict)
     usuario: str = "Robert"
+    ciudad: str = "Lima"  # para el clima
+    actualizaciones: dict = field(default_factory=lambda: {"repo": "romocor/LAY"})
+    navegador: str = "predeterminado"  # brave | chrome | edge | predeterminado (el primero instalado)
     camara_indice: int = 0
     modo_mouse_por_defecto: bool = False
     gestos: dict = field(default_factory=dict)  # umbrales calibrados (loops.gestos --calibrar)

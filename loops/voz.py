@@ -67,6 +67,7 @@ class Conversacion:
             al_terminar=self._al_terminar_de_hablar,
         )
         self.modo_texto = texto
+        self.mic_pausado = False  # desde la bandeja: LAY deja de escuchar
         self.turno_id = 0  # cambia al interrumpir: lo que siga llegando del modelo se descarta
         self.ocupado = threading.Event()  # pensando o hablando
         self.cola_remota: list[str] = []
@@ -146,7 +147,10 @@ class Conversacion:
                 with connect(f"ws://{CONFIG.hub_host}:{CONFIG.hub_port}/ws") as ws:
                     for msg in ws:
                         ev = json.loads(msg)
-                        if ev.get("tipo") == "config.cambiada":
+                        if ev.get("tipo") == "voz.microfono":
+                            self.mic_pausado = not ev.get("activo", True)
+                            estado("pausado" if self.mic_pausado else "standby")
+                        elif ev.get("tipo") == "config.cambiada":
                             from lay_core.config import recargar
 
                             recargar()  # nueva IA, voz o sensibilidad sin reiniciar LAY
@@ -196,6 +200,8 @@ class Conversacion:
 
         estaba_ocupado = False
         for bloque in mic.bloques():
+            if self.mic_pausado:
+                continue
             det = detector.alimentar(bloque)
 
             if self.ocupado.is_set():
