@@ -42,6 +42,18 @@ def sistema_procesos(n: int = 8, por: str = "memoria") -> list[dict]:
     return sistema.procesos_top(n, por)
 
 
+@mcp.tool()
+def sistema_bloquear() -> dict:
+    """Bloquea la pantalla de Windows (Win+L)."""
+    return sistema.bloquear_pantalla()
+
+
+@mcp.tool()
+def abrir_configuracion(seccion: str = "ia") -> dict:
+    """Abre la Configuración de LAY en pantalla. seccion: ia, universidad, correo, palmadas, voz, remoto."""
+    return bus.publicar("hud.config", seccion=seccion)
+
+
 # ---------- Archivos ----------
 @mcp.tool()
 def archivos_buscar(

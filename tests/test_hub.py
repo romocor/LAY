@@ -19,8 +19,8 @@ def test_archivo_bloquea_no_imagenes():
     assert TestClient(app).get("/archivo", params={"ruta": "/etc/passwd"}).status_code == 404
 
 
-def test_comando_remoto_requiere_token():
-    assert TestClient(app).post("/api/comando", json={"texto": "hola"}).status_code == 403
+def test_comando_local_sin_token():
+    assert TestClient(app).post("/api/comando", json={"texto": "hola"}).json()["ok"]
 
 
 def test_mensaje_basura_no_desconecta_al_overlay():

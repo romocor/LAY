@@ -1,7 +1,7 @@
 ; Instalador de LAY (Inno Setup 6) -> dist/LAY_Setup_<ver>.exe
 #define Ver GetEnv("LAY_VERSION")
 #if Ver == ""
-  #define Ver "2.4.0"
+  #define Ver "2.5.0"
 #endif
 
 [Setup]
@@ -24,8 +24,10 @@ WizardStyle=modern
 Name: "es"; MessagesFile: "compiler:Languages\Spanish.isl"
 
 [Tasks]
+Name: "ia"; Description: "Instalar IA GRATUITA local (Ollama + modelo adecuado a esta PC, descarga de 1-7 GB)"
+Name: "aplausos"; Description: "Abrir LAY con dos palmadas (detector liviano al iniciar Windows)"
 Name: "escritorio"; Description: "Acceso directo en el escritorio"
-Name: "inicio"; Description: "Iniciar LAY con Windows"; Flags: unchecked
+Name: "inicio"; Description: "Abrir LAY completo al iniciar Windows"; Flags: unchecked
 
 [Files]
 Source: "..\dist\LAY\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
@@ -36,6 +38,14 @@ Name: "{group}\LAY (modo texto)"; Filename: "{app}\LAY-cli.exe"; Parameters: "--
 Name: "{group}\Configuración de LAY"; Filename: "{%USERPROFILE}\.lay"
 Name: "{autodesktop}\LAY"; Filename: "{app}\LAY.exe"; Tasks: escritorio
 Name: "{userstartup}\LAY"; Filename: "{app}\LAY.exe"; Tasks: inicio
+Name: "{userstartup}\LAY Palmadas"; Filename: "{app}\LAY.exe"; Parameters: "--rol aplausos"; Tasks: aplausos
 
 [Run]
+; IA local: ventana con barra de progreso (detecta RAM/GPU y elige el modelo). Si falla, LAY ofrece reintentar en Configuración.
+Filename: "{app}\LAY-cli.exe"; Parameters: "--rol instalar-ia"; Tasks: ia; StatusMsg: "Instalando la IA gratuita local (puede tardar unos minutos)..."; Flags: waituntilterminated
+Filename: "{app}\LAY.exe"; Parameters: "--rol aplausos"; Tasks: aplausos; Flags: nowait runhidden
 Filename: "{app}\LAY.exe"; Description: "Abrir LAY ahora"; Flags: nowait postinstall skipifsilent
+
+[UninstallRun]
+Filename: "{sys}\taskkill.exe"; Parameters: "/F /IM LAY.exe /T"; Flags: runhidden; RunOnceId: "CerrarLAY"
+Filename: "{sys}\taskkill.exe"; Parameters: "/F /IM LAY-cli.exe /T"; Flags: runhidden; RunOnceId: "CerrarLAYcli"

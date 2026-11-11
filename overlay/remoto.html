@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#020b11">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>LAY remoto</title>
+<style>
+:root{--bg:#020b11;--cyan:#65f4ff;--ice:#bafaff;--warn:#ffb547;--ok:#5dffb0}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:#d9fbff;font-family:Inter,Segoe UI,system-ui,sans-serif}
+body{display:flex;flex-direction:column;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+  background:radial-gradient(ellipse at 50% 30%,rgba(0,156,190,.18),transparent 55%),var(--bg)}
+header{display:flex;align-items:center;gap:12px;padding:16px 18px 10px}
+.orb{width:44px;height:44px;border-radius:50%;border:2px solid var(--cyan);box-shadow:0 0 18px rgba(101,244,255,.5),inset 0 0 14px rgba(101,244,255,.3);display:grid;place-items:center;font:800 13px/1 Inter,sans-serif;letter-spacing:.1em;color:#e9ffff;flex:none;transition:.3s}
+body.pensando .orb{animation:gira 1.2s linear infinite;border-style:dashed}
+body.hablando .orb{animation:late .4s ease-in-out infinite alternate}
+@keyframes gira{to{transform:rotate(360deg)}}@keyframes late{to{transform:scale(1.1)}}
+h1{margin:0;font-size:15px;letter-spacing:3px}
+#estado{font:10px Consolas,monospace;letter-spacing:2px;color:rgba(186,250,255,.6)}
+#estado.ok{color:var(--ok)}#estado.mal{color:var(--warn)}
+main{flex:1;overflow-y:auto;padding:8px 16px 12px;display:flex;flex-direction:column;gap:10px}
+.m{max-width:86%;padding:10px 13px;border-radius:14px;font-size:15px;line-height:1.4;white-space:pre-wrap;word-wrap:break-word}
+.yo{align-self:flex-end;background:rgba(20,133,163,.35);border:1px solid rgba(101,244,255,.35)}
+.lay{align-self:flex-start;background:rgba(5,35,47,.85);border:1px solid rgba(101,244,255,.18)}
+.sis{align-self:center;font:11px Consolas,monospace;color:rgba(186,250,255,.5);text-align:center}
+.atajos{display:flex;gap:8px;overflow-x:auto;padding:0 16px 10px;scrollbar-width:none}
+.atajos button{flex:none;border:1px solid rgba(101,244,255,.35);background:rgba(5,35,47,.7);color:var(--ice);border-radius:18px;padding:8px 12px;font-size:13px}
+form{display:flex;gap:8px;padding:10px 12px 14px;border-top:1px solid rgba(101,244,255,.15);background:rgba(2,11,17,.9)}
+input{flex:1;min-width:0;background:rgba(5,35,47,.8);border:1px solid rgba(101,244,255,.35);border-radius:22px;color:#e9ffff;padding:12px 16px;font-size:16px;outline:none}
+input:focus{border-color:var(--cyan)}
+.r{width:46px;height:46px;flex:none;border-radius:50%;border:1px solid rgba(101,244,255,.5);background:rgba(20,133,163,.3);color:#e9ffff;font-size:18px}
+#mic.on{background:var(--cyan);color:#02131b;box-shadow:0 0 20px var(--cyan)}
+#login{position:fixed;inset:0;background:var(--bg);display:none;flex-direction:column;justify-content:center;padding:28px;gap:14px}
+#login.ver{display:flex}#login p{color:rgba(186,250,255,.7);font-size:14px;line-height:1.5;margin:0}
+#login button{border:1px solid var(--cyan);background:rgba(20,133,163,.35);color:#fff;border-radius:22px;padding:12px;font-size:15px}
+</style>
+</head>
+<body>
+<header><div class="orb">LAY</div><div><h1>LAY REMOTO</h1><div id="estado">CONECTANDO…</div></div></header>
+<main id="chat"><div class="m sis">Escribe o mantén el micrófono. LAY responde aquí y en tu PC.</div></main>
+<div class="atajos" id="atajos"></div>
+<form id="f"><input id="t" placeholder="Pídele algo a LAY…" autocomplete="off" enterkeyhint="send"><button type="button" class="r" id="mic" aria-label="Dictar">🎤</button><button class="r" aria-label="Enviar">➤</button></form>
+<div id="login"><h1>VINCULAR CON TU PC</h1>
+  <p>En LAY de tu PC: <b>Configuración → Remoto → Mostrar QR</b> y escanéalo con la cámara. O pega aquí el token:</p>
+  <input id="tok" placeholder="Token" autocomplete="off"><button id="guardar">Vincular</button></div>
+<script>
+const $=id=>document.getElementById(id);
+const ATAJOS=["¿Cómo está la PC?","Resúmeme los correos de hoy","¿Qué tengo pendiente en Blackboard?","Modo trabajo","Bloquea la pantalla"];
+// El token viaja en el #fragmento del QR (no llega a logs ni servidores) y se guarda en este celular
+let token=null;
+try{const h=new URLSearchParams(location.hash.slice(1)).get('token');if(h){localStorage.setItem('lay_token',h);history.replaceState(null,'',location.pathname)}token=localStorage.getItem('lay_token')}catch(e){}
+function burbuja(texto,clase){const d=document.createElement('div');d.className='m '+clase;d.textContent=texto;$('chat').appendChild(d);$('chat').scrollTop=1e9;return d}
+function estado(t,c){const e=$('estado');e.textContent=t;e.className=c||''}
+let ultimaLay=null;
+async function enviar(texto){
+  texto=texto.trim();if(!texto)return;burbuja(texto,'yo');$('t').value='';
+  try{const r=await fetch('/api/comando',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({texto})});
+    if(r.status===403){const j=await r.json();burbuja(j.error||'Sin permiso','sis');if(/Token/.test(j.error||''))pedirToken();}
+  }catch(e){burbuja('No llego a tu PC. ¿Tailscale está encendido en ambos?','sis')}
+}
+function conectar(){
+  if(!token)return pedirToken();
+  const ws=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}/ws?token=${encodeURIComponent(token)}`);
+  ws.onopen=()=>estado('● CONECTADO A TU PC','ok');
+  ws.onclose=e=>{estado(e.code===4403?'TOKEN INVÁLIDO':'● RECONECTANDO…','mal');if(e.code===4403)return pedirToken();setTimeout(conectar,2000)};
+  ws.onmessage=m=>{const ev=JSON.parse(m.data);
+    if(ev.tipo==='voz.estado'){document.body.className=ev.estado==='standby'?'':ev.estado;
+      if(ev.estado==='hablando'&&ev.texto){if(ultimaLay&&Date.now()-ultimaLay.t<15000){ultimaLay.el.textContent+=' '+ev.texto}else{ultimaLay={el:burbuja(ev.texto,'lay'),t:0}}ultimaLay.t=Date.now();$('chat').scrollTop=1e9}}
+    if(ev.tipo==='hud.panel'){burbuja((ev.titulo||'')+'\n'+(ev.items||[]).map(i=>'• '+i.titulo+(i.detalle?' — '+i.detalle:'')).join('\n'),'lay')}
+    if(ev.tipo==='hud.error')burbuja('⚠ '+ev.detalle,'sis');
+    if(ev.tipo==='remoto.comando')ultimaLay=null;};
+}
+function pedirToken(){$('login').classList.add('ver')}
+$('guardar').onclick=()=>{token=$('tok').value.trim();if(!token)return;localStorage.setItem('lay_token',token);$('login').classList.remove('ver');conectar()};
+$('f').onsubmit=e=>{e.preventDefault();enviar($('t').value)};
+ATAJOS.forEach(a=>{const b=document.createElement('button');b.textContent=a;b.onclick=()=>enviar(a);$('atajos').appendChild(b)});
+// Dictado con el reconocimiento de voz del propio celular (Chrome Android / Safari iOS)
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+if(!SR)$('mic').style.display='none';
+else{const rec=new SR();rec.lang='es-PE';rec.interimResults=true;let final='';
+  rec.onresult=e=>{final=[...e.results].map(r=>r[0].transcript).join('');$('t').value=final};
+  rec.onend=()=>{$('mic').classList.remove('on');if(final)enviar(final);final=''};
+  $('mic').onclick=()=>{if($('mic').classList.contains('on')){rec.stop()}else{$('mic').classList.add('on');rec.start()}}}
+conectar();
+</script>
+</body>
+</html>

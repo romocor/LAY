@@ -25,6 +25,8 @@ ROLES = {
     "voz": "loops.voz",
     "mcp": "lay_mcp.server",
     "configurar": "lay_core.configurar",
+    "aplausos": "loops.aplausos",
+    "instalar-ia": "lay_core.ia_local",
 }
 
 
@@ -79,20 +81,30 @@ def _popen(cmd: list[str]) -> subprocess.Popen:
 
 
 def lanzador(a: argparse.Namespace) -> None:
-    from lay_core.config import HUB_URL
-    from lay_core.configurar import falta_configurar
+    import threading
 
-    if falta_configurar():
-        # Primera vez: abre el asistente en una consola propia (LAY.exe no tiene consola)
-        flags = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
-        subprocess.run(comando_rol("configurar"), creationflags=flags)
-        from dotenv import load_dotenv
+    import httpx
 
-        from lay_core.config import DATA_DIR
+    from lay_core.config import CONFIG, HUB_URL
 
-        load_dotenv(DATA_DIR / ".env", override=True)
-        if falta_configurar():
-            raise SystemExit("LAY necesita tu clave de Anthropic para funcionar.")
+    # Una sola instancia: si LAY ya está abierto, solo se trae al frente
+    try:
+        httpx.get(f"{HUB_URL}/api/ping", timeout=1)
+        from lay_core import bus
+
+        bus.publicar("aplausos", n=2, accion="traer")
+        return
+    except httpx.HTTPError:
+        pass
+
+    # IA local gratis: si está instalada, se enciende en segundo plano (no bloquea la ventana)
+    if CONFIG.ia.get("proveedor", "ollama") == "ollama":
+        from lay_core import ia_local
+
+        threading.Thread(target=ia_local.iniciar, daemon=True).start()
+    # Detector de palmadas (si ya corre desde el inicio de Windows, el mutex evita duplicarlo)
+    if CONFIG.aplausos.get("activo", True):
+        _popen(comando_rol("aplausos"))
 
     procs = [_popen(comando_rol("hub"))]
     if not esperar_hub(HUB_URL):
@@ -134,7 +146,7 @@ def main() -> None:
     ap.add_argument("--version", action="store_true")
     a, resto = ap.parse_known_args()
     if a.version:
-        print("LAY 2.4.0")
+        print("LAY 2.5.0")
         return
     if a.rol:
         ejecutar_rol(a.rol, resto + (["--texto"] if a.texto else []))

@@ -147,3 +147,12 @@ def test_mouse_usa_todo_el_escritorio(monkeypatch):
     assert len(movs) == 1
     c._mouse_mover((0.14, 0.5))
     assert movs[-1][0] == -1920  # borde izquierdo del monitor izquierdo (coordenada negativa)
+
+
+def test_swipe_hacia_arriba_lanza_al_monitor_de_arriba():
+    eventos = []
+    c = gestos.Clasificador(eventos.append)
+    for i in range(8):
+        c.procesar(resultado(("Right", mano(cy=0.8 - i * 0.09))), i / 30)
+    lanzar = [e for e in eventos if e.get("gesto") == "lanzar"]
+    assert lanzar and lanzar[0]["direccion"] == "arriba"

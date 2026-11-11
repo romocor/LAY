@@ -4,36 +4,79 @@
 
 - WebSocket /ws      -> overlay/HUD se suscribe y recibe todo.
 - POST /evento       -> MCP, voz y gestos publican.
-- POST /api/comando  -> modo remoto: texto desde el celular (Tailscale + token).
+- POST /api/comando  -> texto para LAY (local, o remoto desde el celular con token).
 - GET  /archivo      -> sirve imágenes locales al overlay (solo rutas permitidas).
 - GET  /             -> sirve el overlay (overlay/index.html).
+- /api/config, /api/ia/*  -> Configuración dentro de la app (solo desde esta PC).
+- GET  /remoto       -> página para el celular (Tailscale + token).
+
+SEGURIDAD: desde esta PC (127.0.0.1) todo está permitido. Desde fuera SOLO /remoto,
+/api/comando y /ws en modo lectura, siempre con token, y por defecto solo por Tailscale.
 """
 
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import json
 import os
 import secrets
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI, Header, HTTPException, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse, JSONResponse
 
-from lay_core.config import CONFIG, HUB_TOKEN, ROOT
+from lay_core.config import CONFIG, ROOT
 from lay_core.seguridad import ruta_permitida
 
 app = FastAPI(title="LAY hub")
 clientes: set[WebSocket] = set()
+remotos: set[WebSocket] = set()  # celulares: solo reciben, nunca envían eventos
 cola_comandos: asyncio.Queue = asyncio.Queue()
 
+TAILSCALE = ipaddress.ip_network("100.64.0.0/10")
+RUTAS_REMOTAS = {"/remoto", "/api/comando", "/api/remoto/ping"}
 
-def _auth(authorization: str | None) -> None:
-    if HUB_TOKEN:
-        recibido = (authorization or "").removeprefix("Bearer ").strip()
-        if not secrets.compare_digest(recibido, HUB_TOKEN):
-            raise HTTPException(401, "token inválido")
+
+def es_local(host: str | None) -> bool:
+    try:
+        return ipaddress.ip_address(host or "").is_loopback
+    except ValueError:
+        return host in ("testclient", "localhost")
+
+
+def token_valido(recibido: str | None) -> bool:
+    esperado = os.environ.get("LAY_HUB_TOKEN", "")
+    return bool(esperado) and bool(recibido) and secrets.compare_digest(recibido.strip(), esperado)
+
+
+def motivo_rechazo_remoto(host: str | None, ruta: str, token: str | None) -> str | None:
+    """None si se permite. Reglas para conexiones que NO vienen de esta PC."""
+    if not CONFIG.remoto.get("activo"):
+        return "El acceso remoto está desactivado (Configuración → Remoto)."
+    if CONFIG.remoto.get("solo_tailscale", True):
+        try:
+            if ipaddress.ip_address(host or "") not in TAILSCALE:
+                return "Solo se permite desde Tailscale."
+        except ValueError:
+            return "Origen desconocido."
+    if ruta not in RUTAS_REMOTAS and ruta != "/ws":
+        return "Ruta no disponible en remoto."
+    if ruta != "/remoto" and not token_valido(token):
+        return "Token inválido."
+    return None
+
+
+@app.middleware("http")
+async def guardia(request: Request, call_next):
+    host = request.client.host if request.client else None
+    if not es_local(host):
+        token = request.headers.get("authorization", "").removeprefix("Bearer ") or request.query_params.get("token")
+        motivo = motivo_rechazo_remoto(host, request.url.path, token)
+        if motivo:
+            return JSONResponse({"error": motivo}, status_code=403)
+    return await call_next(request)
 
 
 async def difundir(evento: dict) -> None:
@@ -50,12 +93,21 @@ async def difundir(evento: dict) -> None:
 
 @app.websocket("/ws")
 async def ws(ws: WebSocket):
+    host = ws.client.host if ws.client else None
+    remoto = not es_local(host)
+    if remoto and motivo_rechazo_remoto(host, "/ws", ws.query_params.get("token")):
+        await ws.close(code=4403)
+        return
     await ws.accept()
     clientes.add(ws)
+    if remoto:
+        remotos.add(ws)
     try:
         while True:
             # El overlay también publica (ej. "overlay.fling" para mandar imagen a otro monitor)
             texto = await ws.receive_text()
+            if remoto:
+                continue  # un celular no puede abrir archivos ni mover ventanas por el WS
             try:
                 data = json.loads(texto)
                 if not isinstance(data, dict) or "tipo" not in data:
@@ -65,6 +117,7 @@ async def ws(ws: WebSocket):
                 await difundir({"tipo": "hud.error", "detalle": f"{type(exc).__name__}: {exc}"[:200]})
     except WebSocketDisconnect:
         clientes.discard(ws)
+        remotos.discard(ws)
 
 
 async def manejar_evento_overlay(ev: dict) -> None:
@@ -87,26 +140,35 @@ async def manejar_evento_overlay(ev: dict) -> None:
 
 
 @app.post("/evento")
-async def evento(ev: dict, authorization: str | None = Header(None)):
-    _auth(authorization)
+async def evento(ev: dict):
     await difundir(ev)
     return {"ok": True, "clientes": len(clientes)}
 
 
 @app.post("/api/comando")
-async def comando(body: dict, authorization: str | None = Header(None)):
-    """Remoto: {"texto": "LAY, abre mi workspace de trabajo"}. Lo consume loops/voz.py."""
-    if not HUB_TOKEN:
-        raise HTTPException(403, "Define LAY_HUB_TOKEN para habilitar comandos remotos")
-    _auth(authorization)
-    await cola_comandos.put(body["texto"])
-    await difundir({"tipo": "remoto.comando", "texto": body["texto"]})
+async def comando(body: dict, request: Request):
+    """{"texto": "abre mi workspace de trabajo"}. Lo consume loops/voz.py (la guardia ya validó origen/token)."""
+    texto = str(body.get("texto", "")).strip()[:500]
+    if not texto:
+        raise HTTPException(400, "texto vacío")
+    await cola_comandos.put(texto)
+    origen = "local" if es_local(request.client.host if request.client else None) else "remoto"
+    await difundir({"tipo": "remoto.comando", "texto": texto, "origen": origen})
+    return {"ok": True}
+
+
+@app.get("/api/remoto/ping")
+async def remoto_ping():
+    return {"ok": True, "nombre": CONFIG.nombre}
+
+
+@app.get("/api/ping")
+async def ping():
     return {"ok": True}
 
 
 @app.get("/api/comando/siguiente")
-async def siguiente(authorization: str | None = Header(None)):
-    _auth(authorization)
+async def siguiente():
     try:
         return {"texto": cola_comandos.get_nowait()}
     except asyncio.QueueEmpty:
@@ -163,5 +225,22 @@ async def index():
     return FileResponse(ROOT / "overlay" / "index.html")
 
 
+@app.get("/remoto")
+async def pagina_remota():
+    return FileResponse(ROOT / "overlay" / "remoto.html")
+
+
+from loops import hub_api  # noqa: E402  (registra /api/config, /api/ia/*, /api/remoto/*)
+
+hub_api.registrar(app, difundir)
+
+
+def direccion_de_escucha() -> str:
+    """127.0.0.1 salvo que el remoto esté activo (entonces todas las interfaces; la guardia filtra)."""
+    if os.getenv("LAY_BIND"):
+        return os.environ["LAY_BIND"]
+    return "0.0.0.0" if CONFIG.remoto.get("activo") else CONFIG.hub_host
+
+
 if __name__ == "__main__":
-    uvicorn.run(app, host=os.getenv("LAY_BIND", CONFIG.hub_host), port=CONFIG.hub_port, log_level="warning")
+    uvicorn.run(app, host=direccion_de_escucha(), port=CONFIG.hub_port, log_level="warning")

@@ -11,11 +11,16 @@ lay_core/        ÚNICA implementación de capacidades
   correo.py      Gmail API + Microsoft Graph
   blackboard.py  feed iCal (+ REST opcional)
   seguridad.py   @sensible, auditoría, rutas prohibidas
-  router.py      Sonnet (rapido/normal) vs Opus (profundo) + escalado
-  cerebro.py     bucle agente Claude + tools del MCP + candado de confirmación
+  router.py      nivel de esfuerzo (rapido/normal/profundo) + filtro de herramientas por tema
+  proveedores.py IA: Ollama LOCAL GRATIS (defecto) · Gemini/Groq gratis con clave · Claude opcional
+  ia_local.py    instala Ollama + modelo según RAM/GPU en CUALQUIER PC (rol instalar-ia)
+  cerebro.py     bucle agente con cualquier proveedor (historial neutro) + candado de confirmación
   bus.py         publicar eventos al hub
 lay_mcp/server.py  ÚNICA lista de herramientas (MCP stdio o HTTP)
-loops/hub.py       LOOP 0 bus de eventos + sirve overlay + API remota
+loops/hub.py       LOOP 0 bus de eventos + sirve overlay; guardia: remoto solo con token (+Tailscale)
+loops/hub_api.py   Configuración dentro de la app (/api/config, /api/ia/*, /api/remoto/*) — solo local
+loops/aplausos.py  doble palmada abre LAY; triple = acción (arranca con Windows, mutex)
+overlay/remoto.html página del celular (QR + token, dictado)
 loops/gestos.py    LOOP 1 cámara → MediaPipe → gestos (overlay o mouse)
 loops/voz.py       LOOP 2 wake word → STT → cerebro → TTS
 lay_core/cerebro   LOOP 3 bucle agente (tool use hasta end_turn)
@@ -32,7 +37,12 @@ integracion/       adaptadores para el repo centro_mando
 - Respuestas habladas: cortas, sin markdown.
 - Español en código, docstrings y mensajes al usuario.
 
-## Modelos y esfuerzo
+## IA: gratis por defecto (regla del producto)
+- LAY debe funcionar SIN pagar en cualquier PC donde se instale el .exe: Ollama local es el defecto.
+- Nunca usar un proveedor de pago como respaldo sin `ia.respaldo_pago` activado por el usuario.
+- Toda configuración del usuario va en el panel de la app (hub_api + overlay), nunca pedir editar archivos.
+
+## Modelos y esfuerzo (desarrollo con Claude Code)
 - Principal: Sonnet. Fácil/mecánico → subagentes Sonnet (`lay-escritorio`, `lay-mcp`, `lay-integraciones`, `lay-ui`, `lay-qa`).
 - Difícil → subagentes Opus (`lay-arquitecto`, `lay-vision`, `lay-voz`, `lay-seguridad`).
 - Comandos: `/fase N`, `/tarea <x>`, `/nueva-herramienta <x>`, `/salud` (con `/loop 30m /salud`).

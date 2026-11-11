@@ -13,7 +13,7 @@ Vocabulario (igual a la referencia + extras):
   TAP (pinch corto)        -> cerrar el ítem abierto / click en modo mouse
   DOBLE TAP                -> doble click (abrir carpeta/archivo en modo mouse)
   CLAP (palmas juntas)     -> traer al anillo central
-  SNAP / swipe rápido      -> lanzar la imagen a otro monitor (izq/der)
+  SWIPE rápido (3+ dedos)  -> lanzar la imagen al monitor de izq/der/arriba/abajo
   DOS DEDOS arriba/abajo   -> scroll (en modo mouse, la rueda real)
   PALMA ABIERTA 1,5 s      -> alternar modo overlay <-> mouse
   PUÑO 0,7 s               -> callar a LAY si está hablando
@@ -239,16 +239,14 @@ class Clasificador:
 
         # Swipe/snap rápido sin pinch -> lanzar a monitor
         if not e.pinch and ext >= 3:
-            vx = self._velocidad(e, eje=0)
-            if abs(vx) > SWIPE_VEL:
+            vx, vy = self._velocidad(e, eje=0), self._velocidad(e, eje=1)
+            if max(abs(vx), abs(vy)) > SWIPE_VEL:
+                if abs(vx) >= abs(vy):
+                    direccion = "derecha" if vx > 0 else "izquierda"
+                else:
+                    direccion = "abajo" if vy > 0 else "arriba"  # p. ej. el monitor sobre la laptop
                 self.emitir(
-                    {
-                        "tipo": "gesto",
-                        "gesto": "lanzar",
-                        "direccion": "derecha" if vx > 0 else "izquierda",
-                        "x": e.cursor[0],
-                        "y": e.cursor[1],
-                    }
+                    {"tipo": "gesto", "gesto": "lanzar", "direccion": direccion, "x": e.cursor[0], "y": e.cursor[1]}
                 )
                 e.historial.clear()
 
@@ -308,6 +306,8 @@ class Clasificador:
         dt = max(t1 - t0, 1e-3)
         if eje == 0:
             return (x1 - x0) / dt
+        if eje == 1:
+            return (y1 - y0) / dt
         return math.hypot(x1 - x0, y1 - y0) / dt
 
     # --- modo mouse ---

@@ -16,6 +16,7 @@ screeninfo>=0.8
 mss>=9.0
 pywebview>=5.0
 Pillow>=10.0          # miniaturas del overlay
+qrcode>=7.4           # QR para vincular el celular
 
 # Gestos (MediaPipe legacy "solutions" API; fijar versión)
 opencv-python>=4.9

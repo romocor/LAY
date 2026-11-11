@@ -9,9 +9,11 @@ from __future__ import annotations
 
 
 def params_para(messages: list[dict]) -> dict:
-    from lay_core import router
+    from lay_core import proveedores, router
+    from lay_core.config import CONFIG
 
     ultimo = next(
         (m["content"] for m in reversed(messages) if m["role"] == "user" and isinstance(m["content"], str)), ""
     )
-    return router.elegir(ultimo).params()
+    p = router.elegir(ultimo)
+    return {"model": proveedores.modelo_para("anthropic", p.nivel, CONFIG.ia), "max_tokens": p.max_tokens}

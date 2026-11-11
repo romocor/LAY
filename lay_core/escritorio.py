@@ -55,10 +55,26 @@ def _gw():
 
 
 def monitores() -> list[dict]:
+    """Monitor 1 = el PRINCIPAL; los demás de izquierda a derecha y de arriba a abajo.
+    Cada uno trae `lado` (izquierda/derecha/arriba/abajo) respecto del principal.
+    Ej. de Robert: 1 laptop, 2 el de arriba, 3 el de la derecha."""
     from screeninfo import get_monitors
 
+    crudos = list(get_monitors())
+    if not crudos:
+        return []
+    principal = next((m for m in crudos if getattr(m, "is_primary", False)), crudos[0])
+    resto = sorted((m for m in crudos if m is not principal), key=lambda m: (m.x, m.y))
+    pcx, pcy = principal.x + principal.width / 2, principal.y + principal.height / 2
     out = []
-    for i, m in enumerate(sorted(get_monitors(), key=lambda m: m.x)):
+    for i, m in enumerate([principal, *resto]):
+        cx, cy = m.x + m.width / 2, m.y + m.height / 2
+        dx, dy = cx - pcx, cy - pcy
+        lado = (
+            "principal"
+            if m is principal
+            else (("derecha" if dx > 0 else "izquierda") if abs(dx) >= abs(dy) else ("abajo" if dy > 0 else "arriba"))
+        )
         out.append(
             {
                 "indice": i + 1,
@@ -66,7 +82,8 @@ def monitores() -> list[dict]:
                 "y": m.y,
                 "ancho": m.width,
                 "alto": m.height,
-                "principal": bool(getattr(m, "is_primary", False)),
+                "principal": m is principal,
+                "lado": lado,
                 "nombre": m.name,
             }
         )
@@ -125,10 +142,15 @@ def monitor_de_punto(x: int, y: int) -> int:
     return 1
 
 
+DIRECCIONES = {"derecha": (1, 0), "izquierda": (-1, 0), "abajo": (0, 1), "arriba": (0, -1)}
+
+
 def monitor_vecino(direccion: str, desde: int | None = None) -> int:
-    """Monitor a la izquierda/derecha del actual (el del cursor si no se indica).
-    En los extremos se queda en el mismo (no da la vuelta)."""
+    """El monitor más cercano en esa dirección (derecha/izquierda/arriba/abajo) desde el actual
+    (el del cursor si no se indica). Si no hay ninguno hacia allá, se queda en el mismo."""
     mons = monitores()
+    if not mons:
+        return 1
     if desde is None:
         try:
             import pyautogui
@@ -136,8 +158,21 @@ def monitor_vecino(direccion: str, desde: int | None = None) -> int:
             desde = monitor_de_punto(*pyautogui.position())
         except Exception:
             desde = 1
-    paso = 1 if direccion == "derecha" else -1
-    return min(max(desde + paso, 1), len(mons)) if mons else 1
+    actual = next((m for m in mons if m["indice"] == desde), mons[0])
+    ux, uy = DIRECCIONES.get(direccion, (1, 0))
+    cx, cy = actual["x"] + actual["ancho"] / 2, actual["y"] + actual["alto"] / 2
+    mejor, mejor_costo = actual["indice"], float("inf")
+    for m in mons:
+        if m is actual:
+            continue
+        dx, dy = m["x"] + m["ancho"] / 2 - cx, m["y"] + m["alto"] / 2 - cy
+        avance = dx * ux + dy * uy  # cuánto está en la dirección pedida
+        desvio = abs(dx * uy) + abs(dy * ux)  # cuánto se aparta de esa dirección
+        if avance > 0 and desvio < avance * 1.5:
+            costo = avance + desvio * 2
+            if costo < mejor_costo:
+                mejor, mejor_costo = m["indice"], costo
+    return mejor
 
 
 def mover_ventana(titulo: str, monitor: int = 1, posicion: str = "completa") -> dict:

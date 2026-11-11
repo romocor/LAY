@@ -36,3 +36,14 @@ def procesos_top(n: int = 8, por: str = "memoria") -> list[dict]:
             continue
     clave = "ram_mb" if por == "memoria" else "cpu"
     return sorted(procs, key=lambda x: x[clave] or 0, reverse=True)[:n]
+
+
+def bloquear_pantalla() -> dict:
+    """Bloquea Windows (como Win+L). Útil desde el celular si dejaste la PC sola."""
+    import platform
+    import subprocess
+
+    if platform.system() != "Windows":
+        return {"error": "Solo disponible en Windows"}
+    subprocess.run(["rundll32.exe", "user32.dll,LockWorkStation"], check=False)
+    return {"ok": True}

@@ -2,9 +2,13 @@
 
 Asistente personal con voz, gestos de mano y control del PC (Windows 11, multi-monitor).
 
-## Instalar (usuario)
-Ejecuta `LAY_Setup_<ver>.exe`. Configura en `%USERPROFILE%\.lay\.env` (tu ANTHROPIC_API_KEY) y `%USERPROFILE%\.lay\lay.json` (apps y monitores).
-Claude Desktop: `{"mcpServers": {"lay-pc": {"command": "%LOCALAPPDATA%\\Programs\\LAY\\LAY-cli.exe", "args": ["--rol", "mcp"]}}}`
+## Instalar (en cualquier PC con Windows 10/11)
+1. Descarga `LAY_Setup_<ver>.exe` de [Releases](https://github.com/romocor/LAY/releases) y ejecútalo (no pide admin).
+2. Deja marcadas **IA gratuita local** (instala Ollama y el modelo justo para esa PC) y **Abrir con palmadas**.
+3. Abre LAY (o da dos palmadas). Todo se configura dentro: botón **⚙ Configuración** o tecla **C**.
+
+No necesitas ninguna cuenta ni pagar: la IA corre en la PC. Opcional: Gemini/Groq (gratis con clave) o Claude (de pago).
+MCP para Claude Desktop: `{"mcpServers": {"lay-pc": {"command": "%LOCALAPPDATA%\\Programs\\LAY\\LAY-cli.exe", "args": ["--rol", "mcp"]}}}`
 
 ## Generar el .exe
 - En Windows: `powershell -ExecutionPolicy Bypass -File build_exe.ps1 -Version 2.0.0` → `dist\LAY_Setup_2.0.0.exe` + `dist\LAY_portable_2.0.0.zip`.

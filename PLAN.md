@@ -99,7 +99,19 @@ Cada fase se ejecuta con `/fase N` (loop planificar → implementar → verifica
 - [ ] Vista Correos/Universidad del Centro de Mando con datos reales.
 **Aceptación:** ningún correo sale sin un "sí" de Robert (test + prueba manual).
 
-## Fase 5 — Remoto
+## v2.5.0 — Pedidos de Robert (antes de Fase 5)
+- [x] IA GRATIS: Ollama local por defecto; Gemini/Groq gratis con clave; Claude solo opcional (y nunca respaldo sin permiso).
+- [x] El .exe instala la IA en CUALQUIER laptop: detecta RAM/GPU, instala Ollama en silencio y baja qwen2.5 1.5b/3b/7b.
+- [x] Configuración DENTRO de la app (⚙ o tecla C o "LAY, abre configuración"): IA, Blackboard, correo, palmadas, voz, remoto. Se abre sola la primera vez.
+- [x] Abrir LAY con dos palmadas (detector offline, arranca con Windows); triple palmada = workspace/app.
+- [x] Filtro de herramientas por tema para modelos locales chicos; herramientas inventadas no se ejecutan.
+- [x] Bug: monitores de Robert (uno ARRIBA de la laptop) → principal = 1, vecino por geometría, swipe vertical.
+- [x] Bug: ajustes parciales borraban los valores por defecto de su sección.
+
+## Fase 5 — Remoto  (código listo v2.5.0)
+- [x] Guardia del hub: desde fuera solo /remoto, /api/comando y /ws de lectura, con token y solo Tailscale (antes /ws y /archivo quedaban expuestos).
+- [x] Página del celular con QR, token en el #fragmento, dictado por voz del celular y atajos.
+- [x] Tests de seguridad remota (IP de wifi, sin token, rutas internas, WS de solo lectura).
 - [ ] Tailscale en PC y celular; `LAY_BIND` = IP de Tailscale.
 - [ ] Hub `/api/comando` con `LAY_HUB_TOKEN`: atajo de iPhone/Android que manda texto a LAY.
 - [ ] MCP por HTTP (`--http`) con `LAY_MCP_TOKEN` para usar LAY desde Claude en el celular.

@@ -9,7 +9,7 @@ RAIZ = os.path.abspath(os.path.join(SPECPATH, ".."))  # noqa: F821  (SPECPATH lo
 sys.path.insert(0, RAIZ)  # para que collect_submodules encuentre lay_core, loops, etc.
 
 datas, binaries, hidden = [], [], []
-for paquete in ("mediapipe", "webview", "edge_tts", "mcp", "uvicorn", "pygame", "googleapiclient", "icalendar", "vosk"):
+for paquete in ("mediapipe", "webview", "edge_tts", "mcp", "uvicorn", "pygame", "googleapiclient", "icalendar", "vosk", "qrcode"):
     try:
         d, b, h = collect_all(paquete)
         datas += d; binaries += b; hidden += h
@@ -35,7 +35,7 @@ else:
     print("[lay.spec] AVISO: sin modelo Vosk empaquetado; se descargará en el primer arranque")
 
 datas += [(os.path.join(RAIZ, "overlay"), "overlay"), (os.path.join(RAIZ, "config"), "config"),
-          (os.path.join(RAIZ, ".env.example"), ".")]
+          (os.path.join(RAIZ, ".env.example"), "."), (os.path.join(RAIZ, "pyproject.toml"), ".")]
 
 a = Analysis([os.path.join(RAIZ, "lay.py")], pathex=[RAIZ], binaries=binaries, datas=datas, hiddenimports=hidden,
              excludes=["tkinter", "matplotlib", "pytest", "IPython"], noarchive=False)

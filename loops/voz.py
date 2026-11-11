@@ -146,7 +146,12 @@ class Conversacion:
                 with connect(f"ws://{CONFIG.hub_host}:{CONFIG.hub_port}/ws") as ws:
                     for msg in ws:
                         ev = json.loads(msg)
-                        if ev.get("tipo") == "voz.decir":
+                        if ev.get("tipo") == "config.cambiada":
+                            from lay_core.config import recargar
+
+                            recargar()  # nueva IA, voz o sensibilidad sin reiniciar LAY
+                            self.locutor.voz = CONFIG.voz_tts
+                        elif ev.get("tipo") == "voz.decir":
                             self.locutor.decir(ev["texto"])
                         elif ev.get("tipo") == "voz.callar" or (
                             ev.get("tipo") == "gesto" and ev.get("gesto") == "puno" and self.ocupado.is_set()

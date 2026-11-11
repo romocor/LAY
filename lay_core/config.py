@@ -52,11 +52,18 @@ class LayConfig:
     carpeta_galeria: str = str(Path.home() / "Pictures")
     apps: dict[str, str] = field(default_factory=dict)
     workspaces: dict[str, list[dict]] = field(default_factory=dict)
-    modelo_facil: str = "claude-sonnet-5-5"
-    modelo_dificil: str = "claude-opus-5-5"
+    usuario: str = "Robert"
     camara_indice: int = 0
     modo_mouse_por_defecto: bool = False
     gestos: dict = field(default_factory=dict)  # umbrales calibrados (loops.gestos --calibrar)
+    # IA: "ollama" (local, gratis, por defecto) | "gemini" / "groq" (capa gratuita con clave) | "anthropic" (pago)
+    ia: dict = field(default_factory=lambda: {"proveedor": "ollama", "modelos": {}, "filtrar_herramientas": "auto"})
+    # Abrir LAY con palmadas: doble = abrir/traer LAY; triple = acción configurable
+    aplausos: dict = field(
+        default_factory=lambda: {"activo": True, "sensibilidad": 0.6, "accion_triple": "workspace:trabajo"}
+    )
+    # Remoto: solo con token; por defecto solo desde Tailscale (100.64.0.0/10)
+    remoto: dict = field(default_factory=lambda: {"activo": False, "solo_tailscale": True})
 
     @classmethod
     def load(cls) -> "LayConfig":
@@ -65,12 +72,44 @@ class LayConfig:
             data = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
             for k, v in data.items():
                 if hasattr(cfg, k):
+                    defecto = getattr(cfg, k)
+                    # Secciones (ia, aplausos, remoto...): lo guardado completa los valores por defecto,
+                    # así un lay.json viejo o un ajuste parcial no borra el resto de opciones.
+                    if isinstance(defecto, dict) and isinstance(v, dict) and k not in ("apps", "workspaces"):
+                        v = {**defecto, **v}
                     setattr(cfg, k, v)
-        cfg.modelo_facil = os.getenv("LAY_MODEL_EASY", cfg.modelo_facil)
-        cfg.modelo_dificil = os.getenv("LAY_MODEL_HARD", cfg.modelo_dificil)
         return cfg
 
 
 CONFIG = LayConfig.load()
+
+
+def recargar() -> LayConfig:
+    """Relee lay.json y .env y actualiza CONFIG EN SITIO (los módulos que lo importaron ven el cambio)."""
+    try:
+        from dotenv import load_dotenv
+
+        load_dotenv(DATA_DIR / ".env", override=True)
+    except ImportError:
+        pass
+    nuevo = LayConfig.load()
+    CONFIG.__dict__.update(nuevo.__dict__)
+    return CONFIG
+
+
+def guardar(cambios: dict) -> LayConfig:
+    """Mezcla `cambios` en lay.json (dicts anidados se fusionan, no se pisan) y recarga."""
+    actual = json.loads(CONFIG_FILE.read_text(encoding="utf-8")) if CONFIG_FILE.exists() else {}
+
+    def fusionar(a: dict, b: dict) -> dict:
+        for k, v in b.items():
+            a[k] = fusionar(dict(a.get(k) or {}), v) if isinstance(v, dict) and isinstance(a.get(k), dict) else v
+        return a
+
+    CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    CONFIG_FILE.write_text(json.dumps(fusionar(actual, cambios), ensure_ascii=False, indent=2), encoding="utf-8")
+    return recargar()
+
+
 HUB_URL = f"http://{CONFIG.hub_host}:{CONFIG.hub_port}"
 HUB_TOKEN = os.getenv("LAY_HUB_TOKEN", "")

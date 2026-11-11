@@ -63,6 +63,40 @@ body.opus .r2{border-top-color:var(--violet);border-bottom-color:#d6c2ff}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes breathe{0%,100%{opacity:.75}50%{opacity:1;filter:brightness(1.5)}}
 @keyframes talk{from{transform:scale(.96)}to{transform:scale(1.06)}}
+
+/* ---------- Configuración ---------- */
+#engranaje{position:fixed;top:22px;left:50%;transform:translateX(-50%);z-index:12;border:1px solid rgba(101,244,255,.4);background:rgba(5,35,47,.75);color:var(--ice);font:10px Consolas,monospace;letter-spacing:3px;padding:8px 16px;cursor:pointer;clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px)}
+#engranaje:hover{background:rgba(20,133,163,.4);color:#fff}
+#config{position:fixed;inset:0;z-index:30;display:none;place-items:center;background:rgba(1,8,13,.72);backdrop-filter:blur(4px)}
+#config.abierto{display:grid}
+.cfg{width:min(900px,94vw);height:min(640px,90vh);display:grid;grid-template-columns:190px 1fr;background:rgba(2,16,24,.96);border:1px solid rgba(101,244,255,.4);box-shadow:0 0 40px rgba(38,216,247,.25)}
+.cfg nav{border-right:1px solid rgba(101,244,255,.18);padding:18px 0;display:flex;flex-direction:column}
+.cfg nav h2{margin:0 18px 14px;font:11px Consolas,monospace;letter-spacing:4px;color:var(--cyan)}
+.cfg nav button{all:unset;cursor:pointer;padding:11px 18px;font-size:13px;color:rgba(217,251,255,.7);border-left:2px solid transparent}
+.cfg nav button.act{color:#fff;border-left-color:var(--cyan);background:rgba(20,133,163,.18)}
+.cfg nav .pie{margin-top:auto;padding:0 18px;font:9px Consolas,monospace;color:rgba(133,227,243,.4);letter-spacing:1px}
+.cfg section{display:none;padding:22px 26px;overflow-y:auto}.cfg section.act{display:block}
+.cfg h3{margin:0 0 4px;font-size:17px;color:#e9ffff;font-weight:600}.cfg .sub{position:static;bottom:auto;margin:0 0 18px;font:12px/1.5 Inter,Segoe UI,Arial,sans-serif;letter-spacing:0;color:rgba(186,250,255,.55)}
+.cfg label{display:block;font-size:12px;color:rgba(186,250,255,.75);margin:14px 0 6px}
+.cfg input[type=text],.cfg input[type=password],.cfg input[type=number],.cfg select{width:100%;background:rgba(5,35,47,.8);border:1px solid rgba(101,244,255,.3);color:#e9ffff;padding:9px 11px;font-size:13px;outline:none}
+.cfg input:focus,.cfg select:focus{border-color:var(--cyan)}
+.cfg input[type=range]{width:100%;accent-color:var(--cyan)}
+.cfg .btn{display:inline-block;margin:12px 8px 0 0;border:1px solid rgba(100,230,250,.55);background:rgba(20,133,163,.3);color:#fff;padding:9px 16px;font-size:12px;letter-spacing:1px;cursor:pointer}
+.cfg .btn:hover{background:rgba(20,133,163,.55)}.cfg .btn.sec{background:transparent;color:var(--ice)}
+.cfg .btn:disabled{opacity:.45;cursor:default}
+.prov{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.prov label{margin:0;padding:12px;border:1px solid rgba(101,244,255,.22);cursor:pointer;background:rgba(5,35,47,.5)}
+.prov label:has(input:checked){border-color:var(--cyan);background:rgba(20,133,163,.22)}
+.prov b{display:block;color:#e9ffff;font-size:13px;margin-bottom:3px}.prov span{font-size:11px;color:rgba(186,250,255,.6)}
+.prov input{display:none}
+.tarjeta{margin-top:14px;padding:14px;border:1px solid rgba(101,244,255,.2);background:rgba(5,35,47,.45);font-size:12px;line-height:1.6;color:rgba(217,251,255,.85)}
+.barra{height:8px;background:rgba(101,244,255,.12);margin-top:10px;overflow:hidden}.barra i{display:block;height:100%;width:0;background:linear-gradient(90deg,#149bc7,var(--cyan));transition:width .3s}
+.res{margin-top:10px;font-size:12px;min-height:16px}.res.ok{color:#5dffb0}.res.mal{color:var(--warn)}
+.fila{display:flex;gap:10px;align-items:center}.fila>*{flex:1}
+.interruptor{display:flex!important;align-items:center;gap:10px;cursor:pointer}.interruptor input{width:18px;height:18px;accent-color:var(--cyan)}
+.cerrar{position:absolute;top:14px;right:18px;background:none;border:none;color:var(--ice);font-size:22px;cursor:pointer}
+.cfg ol{margin:6px 0 0;padding-left:18px}.cfg a{color:var(--cyan)}
+#qr{margin-top:12px;background:#fff;padding:8px;width:200px;display:none}
 </style>
 </head>
 <body>
@@ -79,8 +113,62 @@ body.opus .r2{border-top-color:var(--violet);border-bottom-color:#d6c2ff}
 <div class="cursor" id="cLeft"></div><div class="cursor" id="cRight"></div>
 <div id="dialogo"><div class="yo" id="yo"></div><div class="lay" id="lay">Di "LAY" para hablarme.</div></div>
 <div id="toast"></div>
+
+<button id="engranaje" title="Configuración (C)">⚙ CONFIGURACIÓN</button>
+<div id="config"><div class="cfg" style="position:relative">
+ <button class="cerrar" data-cerrar>×</button>
+ <nav><h2>CONFIGURACIÓN</h2>
+  <button data-tab="ia" class="act">🧠 Inteligencia</button><button data-tab="universidad">🎓 Universidad</button>
+  <button data-tab="correo">✉ Correo</button><button data-tab="palmadas">👏 Palmadas</button>
+  <button data-tab="voz">🎙 Voz y cámara</button><button data-tab="remoto">📱 Remoto</button>
+  <div class="pie" id="cfgVersion"></div></nav>
+ <div style="overflow:hidden;display:flex">
+ <section data-sec="ia" class="act" style="flex:1"><h3>Inteligencia</h3><p class="sub">Elige qué IA responde. La local es gratis, privada y funciona sin internet.</p>
+  <div class="prov" id="provs"></div>
+  <div id="claveBox" style="display:none"><label id="claveEt">Clave</label><input type="password" id="clave" placeholder="Pega tu clave aquí"><div class="sub" id="claveAyuda" style="margin:6px 0 0"></div></div>
+  <button class="btn" id="guardarIA">Guardar</button><button class="btn sec" id="probarIA">Probar</button><div class="res" id="resIA"></div>
+  <div class="tarjeta" id="localBox"><b style="color:#e9ffff">IA local (Ollama)</b><div id="localInfo">Revisando tu PC…</div>
+   <div class="barra" id="localBarra" style="display:none"><i></i></div><div id="localProg" class="res"></div>
+   <button class="btn" id="instalarIA" disabled>Instalar IA local</button></div>
+  <label class="interruptor" style="margin-top:16px"><input type="checkbox" id="respaldoPago"> Si la IA gratis falla, usar Claude (de pago) como respaldo</label>
+ </section>
+ <section data-sec="universidad" style="flex:1"><h3>Universidad · Blackboard</h3><p class="sub">LAY lee tus entregas y exámenes desde el calendario de Blackboard. No guarda tu contraseña.</p>
+  <div class="tarjeta"><ol><li>Abre Blackboard → <b>Calendario</b>.</li><li>Toca ⚙ (ajustes) → <b>Compartir calendario</b> / <b>Obtener enlace</b>.</li><li>Copia el enlace (empieza con https:// o webcal://) y pégalo aquí.</li></ol></div>
+  <label>Enlace del calendario <span id="bbActual" style="color:rgba(186,250,255,.45)"></span></label><input type="password" id="bbUrl" placeholder="https://…/calendar….ics">
+  <button class="btn" id="guardarBB">Guardar</button><button class="btn sec" id="probarBB">Probar</button><div class="res" id="resBB"></div>
+ </section>
+ <section data-sec="correo" style="flex:1"><h3>Correo</h3><p class="sub">Gmail y Outlook se conectan con permiso oficial (OAuth). LAY nunca envía sin tu "sí".</p>
+  <label>Gmail · archivo de credenciales (App de escritorio)</label><input type="file" id="gmailJson" accept=".json"><div class="res" id="resGmail"></div>
+  <div class="sub" style="margin-top:6px">Google Cloud → APIs → habilitar Gmail API → Credenciales → ID de cliente OAuth → <b>App de escritorio</b> → Descargar JSON.</div>
+  <label>Outlook · Application (client) ID</label><input type="text" id="outlookId" placeholder="00000000-0000-0000-0000-000000000000">
+  <button class="btn" id="guardarCorreo">Guardar</button><div class="res" id="resCorreo"></div>
+ </section>
+ <section data-sec="palmadas" style="flex:1"><h3>Palmadas</h3><p class="sub">Con LAY instalado, un detector liviano escucha palmadas aunque LAY esté cerrado.</p>
+  <label class="interruptor"><input type="checkbox" id="apActivo"> Activado</label>
+  <div class="tarjeta">👏👏 <b>Doble palmada</b>: abre LAY (o lo trae al frente).<br>👏👏👏 <b>Triple palmada</b>: la acción que elijas abajo.</div>
+  <label>Sensibilidad <span id="apSensV"></span></label><input type="range" id="apSens" min="0" max="1" step="0.05">
+  <div class="sub">Baja si se activa sola con ruidos; sube si no te detecta desde lejos.</div>
+  <label>Triple palmada</label><select id="apTriple"></select>
+  <button class="btn" id="guardarAp">Guardar</button><div class="res" id="resAp"></div>
+ </section>
+ <section data-sec="voz" style="flex:1"><h3>Voz y cámara</h3><p class="sub">Cómo te escucha y te habla LAY.</p>
+  <label>Tu nombre</label><input type="text" id="usuario">
+  <label>Voz de LAY</label><select id="vozTts"></select>
+  <label>Sensibilidad de "LAY" <span id="wakeV"></span></label><input type="range" id="wake" min="0.5" max="0.95" step="0.05">
+  <div class="sub">Sube si se activa sola; baja si no te oye.</div>
+  <div class="fila"><div><label>Cámara (n.º)</label><input type="number" id="camara" min="0" max="9"></div><div><label>Micrófono (n.º, vacío = predeterminado)</label><input type="number" id="micro" min="0"></div></div>
+  <button class="btn" id="guardarVoz">Guardar</button><div class="res" id="resVoz"></div>
+ </section>
+ <section data-sec="remoto" style="flex:1"><h3>Control desde el celular</h3><p class="sub">Usa LAY desde fuera de casa de forma privada con Tailscale (gratis).</p>
+  <div class="tarjeta"><ol><li>Instala <b>Tailscale</b> en esta PC y en tu celular, con la misma cuenta.</li><li>Pulsa <b>Activar</b>: se crea un token secreto.</li><li>Escanea el QR con el celular y reinicia LAY.</li></ol></div>
+  <div class="res" id="remInfo"></div>
+  <label class="interruptor"><input type="checkbox" id="soloTs"> Solo permitir conexiones por Tailscale (recomendado)</label>
+  <button class="btn" id="activarRem">Activar / nuevo token</button><button class="btn sec" id="desactivarRem">Desactivar</button>
+  <img id="qr" alt="QR para el celular"><div class="res" id="resRem"></div>
+ </section>
+ </div></div></div>
 <aside id="panel"><h3 id="panelTitulo"></h3><div id="panelItems"></div></aside>
-<div id="ayuda">PINCH tarjeta = agarrar · TAP = abrir/cerrar · ARRASTRAR = mover · QUIETO 1s = rotar 3D · DOS MANOS = escalar · CLAP = anillo central · SWIPE = otro monitor · PALMA 1,5s = modo mouse · DOS DEDOS = scroll · PUÑO = callar a LAY · PUÑO 2s = pausa · ESC callar · R reordenar · D debug</div>
+<div id="ayuda">PINCH tarjeta = agarrar · TAP = abrir/cerrar · ARRASTRAR = mover · QUIETO 1s = rotar 3D · DOS MANOS = escalar · CLAP = anillo central · SWIPE = otro monitor · PALMA 1,5s = modo mouse · DOS DEDOS = scroll · PUÑO = callar a LAY · PUÑO 2s = pausa · ESC callar · C configuración · R reordenar · D ayuda</div>
 
 <script>
 const $=id=>document.getElementById(id);
@@ -160,7 +248,7 @@ function gesto(ev){
     case 'lanzar':{const c=cardEn(x,y)||abierta||ultimaActiva;if(c){
       // El hub decide el monitor vecino real (izq/der del monitor donde está el cursor)
       c.el.classList.add('lanzada');enviar({tipo:'overlay.fling',ruta:c.ruta,direccion:ev.direccion});
-      toast(ev.direccion==='derecha'?'→ MONITOR DERECHO':'← MONITOR IZQUIERDO');setTimeout(()=>c.el.classList.remove('lanzada'),900)}break}
+      toast({derecha:'→ MONITOR DERECHO',izquierda:'← MONITOR IZQUIERDO',arriba:'↑ MONITOR DE ARRIBA',abajo:'↓ MONITOR DE ABAJO'}[ev.direccion]||'→ OTRO MONITOR');setTimeout(()=>c.el.classList.remove('lanzada'),900)}break}
     case 'modo':$('modo').textContent=ev.mouse?'MOUSE':'OVERLAY';toast(ev.mouse?'MODO MOUSE: controlas el escritorio':'MODO OVERLAY');
       // En modo mouse el HUD a pantalla completa estorbaría: se minimiza y vuelve al salir
       try{if(window.pywebview)ev.mouse?pywebview.api.minimizar():pywebview.api.restaurar()}catch(e){}break;
@@ -227,20 +315,99 @@ function conectar(){
       case 'hud.latencia':$('latencia').textContent=(ev.ms/1000).toFixed(1).replace('.',',')+' s';
         $('latencia').style.color=ev.ms<1500?'':'var(--warn)';break;
       case 'hud.panel':mostrarPanel(ev);break;
+      case 'hud.config':abrirConfig(ev.seccion);break;
+      case 'ia.progreso':progresoIA(ev);break;
+      case 'ia.lista':progresoIA({pct:100,texto:'✓ IA local lista'});estadoIA();toast('IA LOCAL LISTA');break;
+      case 'ia.error':res('localProg',ev.detalle,false);$('instalarIA').disabled=false;break;
+      case 'aplausos':if(ev.n===2){try{window.pywebview&&pywebview.api.restaurar()}catch(e){}toast('👏👏 AQUÍ ESTOY')}else toast('👏👏👏 '+(ev.accion||''));break;
       case 'hud.error':toast('ERROR: '+ev.detalle.slice(0,60));break;
       case 'hud.herramienta':$('tool').textContent=ev.nombre;break;
     }};
 }
+
+/* ---------- Configuración (todo dentro de la app; se guarda en ~/.lay) ---------- */
+let CFG=null;
+const AYUDA_CLAVE={gemini:['Clave de Gemini','Gratis y sin tarjeta en <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com</a> → Get API key.','GEMINI_API_KEY'],
+  groq:['Clave de Groq','Gratis y sin tarjeta en <a href="https://console.groq.com/keys" target="_blank">console.groq.com</a> → API Keys.','GROQ_API_KEY'],
+  anthropic:['Clave de Claude (de pago)','En console.anthropic.com → API Keys. Cobra por uso.','ANTHROPIC_API_KEY']};
+const DESC={ollama:'Gratis · privada · sin internet',gemini:'Gratis con clave · muy capaz',groq:'Gratis con clave · muy rápida',anthropic:'De pago · la más capaz'};
+async function api(ruta,cuerpo){const r=await fetch(ruta,cuerpo===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cuerpo)});
+  const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.detail||j.error||('HTTP '+r.status));return j}
+function res(id,txt,ok){const e=$(id);e.textContent=txt;e.className='res '+(ok===true?'ok':ok===false?'mal':'')}
+async function abrirConfig(tab){
+  $('config').classList.add('abierto');if(tab)mostrarTab(tab);
+  try{CFG=await api('/api/config')}catch(e){return}
+  const c=CFG.config;$('cfgVersion').textContent='LAY v'+CFG.version;
+  $('provs').innerHTML=Object.entries(CFG.proveedores).map(([k,n])=>`<label><input type="radio" name="prov" value="${k}" ${c.ia.proveedor===k?'checked':''}><b>${esc(n)}</b><span>${DESC[k]||''}${CFG.secretos[(AYUDA_CLAVE[k]||[])[2]]?' · clave ✓':''}</span></label>`).join('');
+  document.querySelectorAll('input[name=prov]').forEach(r=>r.onchange=pintarClave);pintarClave();
+  $('respaldoPago').checked=!!c.ia.respaldo_pago;
+  $('bbActual').textContent=CFG.blackboard_url?'· actual: '+CFG.blackboard_url:'· sin configurar';
+  res('resGmail',CFG.gmail_configurado?'Credenciales de Gmail cargadas ✓':'',true);
+  $('outlookId').placeholder=CFG.secretos.OUTLOOK_CLIENT_ID?'(configurado — escribe para cambiarlo)':'00000000-0000-0000-0000-000000000000';
+  $('apActivo').checked=c.aplausos.activo;$('apSens').value=c.aplausos.sensibilidad;$('apSensV').textContent=Math.round(c.aplausos.sensibilidad*100)+'%';
+  $('apTriple').innerHTML=[['','Nada']].concat(Object.keys(c.workspaces||{}).map(w=>['workspace:'+w,'Workspace "'+w+'"']),Object.keys(c.apps||{}).map(a=>['app:'+a,'Abrir '+a])).map(([v,t])=>`<option value="${esc(v)}" ${c.aplausos.accion_triple===v?'selected':''}>${esc(t)}</option>`).join('');
+  $('usuario').value=c.usuario||'';$('vozTts').innerHTML=CFG.voces.map(v=>`<option ${v===c.voz_tts?'selected':''}>${v}</option>`).join('');
+  $('wake').value=c.confianza_wake;$('wakeV').textContent=Math.round(c.confianza_wake*100)+'%';$('camara').value=c.camara_indice;$('micro').value=c.microfono??'';
+  $('soloTs').checked=c.remoto.solo_tailscale!==false;
+  estadoIA();infoRemoto();
+}
+function cerrarConfig(){$('config').classList.remove('abierto')}
+function mostrarTab(t){document.querySelectorAll('.cfg nav button[data-tab]').forEach(b=>b.classList.toggle('act',b.dataset.tab===t));
+  document.querySelectorAll('.cfg section').forEach(s=>s.classList.toggle('act',s.dataset.sec===t))}
+function provElegido(){return (document.querySelector('input[name=prov]:checked')||{}).value||'ollama'}
+function pintarClave(){const p=provElegido(),a=AYUDA_CLAVE[p];$('claveBox').style.display=a?'block':'none';$('localBox').style.display=p==='ollama'?'block':'none';
+  if(a){$('claveEt').textContent=a[0]+(CFG.secretos[a[2]]?' (ya configurada — escribe para cambiarla)':'');$('claveAyuda').innerHTML=a[1];$('clave').value=''}}
+async function guardar(config,secretos,idRes){try{CFG=await api('/api/config',{config,secretos});res(idRes,'Guardado ✓',true);return true}catch(e){res(idRes,e.message,false)}}
+async function estadoIA(){
+  try{const e=await api('/api/ia/estado'),h=e.hardware,r=e.recomendacion;
+    $('localInfo').innerHTML=`Tu PC: <b>${h.ram_gb} GB</b> de RAM${h.vram_gb?` · GPU <b>${h.vram_gb} GB</b>`:''} · ${h.disco_libre_gb} GB libres<br>`+
+      `Recomendado: <b>${r.descargar.join(' + ')}</b> (~${r.descarga_gb} GB) — ${esc(r.motivo)}<br>`+
+      (e.listo?'<span style="color:#5dffb0">✓ Lista y funcionando</span>':e.ollama_activo?`Faltan modelos: ${e.faltan.join(', ')}`:e.ollama_instalado?'Ollama instalado pero apagado':'Ollama no está instalado');
+    $('instalarIA').disabled=e.listo;$('instalarIA').textContent=e.listo?'Instalada ✓':e.ollama_instalado?'Descargar modelos':`Instalar IA local (~${r.descarga_gb} GB)`;
+    return e}catch(err){$('localInfo').textContent='No pude revisar la PC: '+err.message}
+}
+async function infoRemoto(){try{const r=await api('/api/remoto/info');
+  $('remInfo').innerHTML=(r.activo?'<span style="color:#5dffb0">● Activado</span>':'○ Desactivado')+' · '+(r.tailscale_ip?`Tailscale: <b>${r.tailscale_ip}</b>`:'Tailscale no detectado en esta PC')+(r.token_configurado?' · token ✓':'');
+  if(r.activo&&r.tailscale_ip&&r.token_configurado){$('qr').src='/api/remoto/qr?'+Date.now();$('qr').style.display='block'}else $('qr').style.display='none'}catch(e){}}
+$('engranaje').onclick=()=>abrirConfig();
+document.querySelectorAll('[data-cerrar]').forEach(b=>b.onclick=cerrarConfig);
+$('config').onclick=e=>{if(e.target.id==='config')cerrarConfig()};
+document.querySelectorAll('.cfg nav button[data-tab]').forEach(b=>b.onclick=()=>mostrarTab(b.dataset.tab));
+$('guardarIA').onclick=async()=>{const p=provElegido(),a=AYUDA_CLAVE[p],sec={};if(a&&$('clave').value.trim())sec[a[2]]=$('clave').value.trim();
+  if(a&&!sec[a[2]]&&!CFG.secretos[a[2]])return res('resIA','Falta la clave para '+CFG.proveedores[p],false);
+  await guardar({ia:{proveedor:p,respaldo_pago:$('respaldoPago').checked}},sec,'resIA')};
+$('probarIA').onclick=async()=>{res('resIA','Probando…');const r=await api('/api/probar/ia',{proveedor:provElegido()}).catch(e=>({ok:false,error:e.message}));
+  res('resIA',r.ok?`Responde en ${(r.ms/1000).toFixed(1).replace('.',',')} s: "${r.respuesta}"`:r.error,r.ok)};
+$('instalarIA').onclick=async()=>{$('instalarIA').disabled=true;$('localBarra').style.display='block';res('localProg','Preparando…');
+  try{await api('/api/ia/preparar',{})}catch(e){res('localProg',e.message,false);$('instalarIA').disabled=false}};
+$('guardarBB').onclick=()=>{const u=$('bbUrl').value.trim();if(!u)return res('resBB','Pega el enlace primero',false);guardar(null,{BLACKBOARD_ICS_URL:u},'resBB').then(()=>{$('bbUrl').value='';abrirConfig('universidad')})};
+$('probarBB').onclick=async()=>{res('resBB','Leyendo calendario…');const r=await api('/api/probar/blackboard',{url:$('bbUrl').value.trim()}).catch(e=>({ok:false,error:e.message}));
+  res('resBB',r.ok?`✓ ${r.eventos} eventos. Próximos: `+(r.proximos.map(p=>p.titulo+' ('+p.fecha+')').join(' · ')||'ninguno'):r.error,r.ok)};
+$('gmailJson').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{await api('/api/gmail/credenciales',JSON.parse(await f.text()));res('resGmail','Credenciales guardadas ✓ La primera vez que pidas tus correos se abrirá Google para autorizar.',true)}catch(err){res('resGmail',err.message,false)}};
+$('guardarCorreo').onclick=()=>{const id=$('outlookId').value.trim();if(!id)return res('resCorreo','Nada que guardar',null);guardar(null,{OUTLOOK_CLIENT_ID:id},'resCorreo')};
+$('apSens').oninput=()=>$('apSensV').textContent=Math.round($('apSens').value*100)+'%';
+$('wake').oninput=()=>$('wakeV').textContent=Math.round($('wake').value*100)+'%';
+$('guardarAp').onclick=()=>guardar({aplausos:{activo:$('apActivo').checked,sensibilidad:+$('apSens').value,accion_triple:$('apTriple').value}},null,'resAp');
+$('guardarVoz').onclick=()=>guardar({usuario:$('usuario').value.trim()||'Robert',voz_tts:$('vozTts').value,confianza_wake:+$('wake').value,camara_indice:+$('camara').value||0,microfono:$('micro').value===''?null:+$('micro').value},null,'resVoz');
+$('activarRem').onclick=async()=>{try{const r=await api('/api/remoto/token',{});await guardar({remoto:{activo:true,solo_tailscale:$('soloTs').checked}},null,'resRem');
+  res('resRem','Token nuevo creado (el anterior deja de servir). '+r.aviso,true);infoRemoto()}catch(e){res('resRem',e.message,false)}};
+$('desactivarRem').onclick=async()=>{await guardar({remoto:{activo:false}},null,'resRem');infoRemoto()};
+function progresoIA(ev){$('localBarra').style.display='block';$('localBarra').firstElementChild.style.width=ev.pct+'%';res('localProg',ev.texto)}
+// Primera vez en una PC nueva: si la IA elegida no está lista, abre Configuración sola
+async function primeraVez(){try{const c=await api('/api/config');if(c.config.ia.proveedor!=='ollama')return;const e=await api('/api/ia/estado');
+  if(!e.listo){abrirConfig('ia');toast('BIENVENIDO: INSTALA LA IA GRATIS PARA EMPEZAR')}}catch(e){}}
+setTimeout(primeraVez,1200);
 conectar();
 setTimeout(()=>$('ayuda').classList.add('oculta'),15000);  // visible 15 s al abrir; D la muestra/oculta
-addEventListener('keydown',e=>{if(e.key==='Escape'){enviar({tipo:'voz.callar'});$('panel').classList.remove('visible')}if(e.key==='r')grilla();if(e.key==='d'){$('ayuda').classList.toggle('oculta')}});
+addEventListener('keydown',e=>{if(e.target.closest&&e.target.closest('#config'))return;if(e.key==='c')abrirConfig();if(e.key==='Escape'){cerrarConfig();enviar({tipo:'voz.callar'});$('panel').classList.remove('visible')}if(e.key==='r')grilla();if(e.key==='d'){$('ayuda').classList.toggle('oculta')}});
 /* Ratón como respaldo para probar sin cámara */
 let mdown=false;
-addEventListener('mousedown',e=>{mdown=true;gesto({gesto:'pinch_inicio',x:e.clientX/W,y:e.clientY/H})});
+const enUI=e=>e.target.closest&&e.target.closest('#config,#engranaje,#panel');
+addEventListener('mousedown',e=>{if(enUI(e))return;mdown=true;gesto({gesto:'pinch_inicio',x:e.clientX/W,y:e.clientY/H})});
 addEventListener('mousemove',e=>{if(mdown)gesto({gesto:'arrastrar',x:e.clientX/W,y:e.clientY/H,dx:0})});
 addEventListener('mouseup',e=>{mdown=false;gesto({gesto:'pinch_fin'})});
-addEventListener('dblclick',e=>gesto({gesto:'tap',x:e.clientX/W,y:e.clientY/H}));
-addEventListener('wheel',e=>gesto({gesto:'escalar',factor:e.deltaY<0?1.08:.92,x:e.clientX/W,y:e.clientY/H}));
+addEventListener('dblclick',e=>!enUI(e)&&gesto({gesto:'tap',x:e.clientX/W,y:e.clientY/H}));
+addEventListener('wheel',e=>!enUI(e)&&gesto({gesto:'escalar',factor:e.deltaY<0?1.08:.92,x:e.clientX/W,y:e.clientY/H}));
 </script>
 </body>
 </html>
