@@ -100,10 +100,7 @@ def p_voz_tts() -> str:
 
 
 def p_nucleo() -> str:
-    try:
-        from lay_core import nucleo
-    except ImportError:
-        return "pendiente (aún no incluido en esta versión)"
+    from lay_core import nucleo
 
     r = nucleo.entender("sube el volumen al 40")
     if r.intencion != "volumen":

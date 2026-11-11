@@ -9,7 +9,7 @@ RAIZ = os.path.abspath(os.path.join(SPECPATH, ".."))  # noqa: F821  (SPECPATH lo
 sys.path.insert(0, RAIZ)  # para que collect_submodules encuentre lay_core, loops, etc.
 
 datas, binaries, hidden = [], [], []
-for paquete in ("mediapipe", "webview", "edge_tts", "mcp", "uvicorn", "pygame", "googleapiclient", "icalendar", "vosk", "qrcode", "pystray",
+for paquete in ("numpy", "mediapipe", "webview", "edge_tts", "mcp", "uvicorn", "pygame", "googleapiclient", "icalendar", "vosk", "qrcode", "pystray",
                 "playwright", "pywinauto", "pycaw", "screen_brightness_control", "ddgs", "comtypes"):
     try:
         d, b, h = collect_all(paquete)

@@ -27,7 +27,8 @@ screen-brightness-control>=0.24
 ddgs>=9.0             # búsqueda web gratis (DuckDuckGo)
 
 # Gestos (MediaPipe legacy "solutions" API; fijar versión)
-opencv-python>=4.9
+opencv-python>=4.9,<4.12  # 4.12+ exige numpy 2
+numpy==1.26.4  # mediapipe 0.10.14 está compilado para numpy 1.x (con 2.x el exe no carga las manos)
 mediapipe==0.10.14
 
 # Voz
