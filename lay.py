@@ -15,6 +15,9 @@ from __future__ import annotations
 
 import argparse
 import multiprocessing
+import os
+
+os.environ.setdefault("MPLBACKEND", "Agg")  # matplotlib (lo importa mediapipe) sin ventanas ni Tk
 import subprocess
 import sys
 import time
@@ -27,6 +30,7 @@ ROLES = {
     "configurar": "lay_core.configurar",
     "aplausos": "loops.aplausos",
     "instalar-ia": "lay_core.ia_local",
+    "diagnostico": "lay_core.diagnostico",
 }
 
 
@@ -42,6 +46,15 @@ def ejecutar_rol(rol: str, resto: list[str]) -> None:
             runpy.run_module(modulo, run_name="__main__")
         else:
             importlib.import_module(modulo).main()
+    except SystemExit:
+        raise
+    except BaseException as exc:
+        # Antes los loops morían en silencio (así no se notó que las manos no arrancaban)
+        from lay_core import bus, registro
+
+        registro.error(f"rol:{rol}", exc if isinstance(exc, Exception) else None)
+        bus.publicar("hud.error", detalle=f"{rol} se detuvo: {type(exc).__name__}: {exc}"[:200])
+        raise
     finally:
         if getattr(sys, "frozen", False):
             # El MCP por stdio deja stdout cerrado al terminar; el bootloader de PyInstaller

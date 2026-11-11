@@ -95,7 +95,10 @@ class Cerebro:
             bloques = contenido[0] if isinstance(contenido, tuple) else contenido
             texto = "\n".join(getattr(b, "text", str(b)) for b in bloques)
         except Exception as exc:
-            texto = json.dumps({"error": str(exc)})
+            from lay_core import registro
+
+            registro.error(f"herramienta:{nombre}", exc, json.dumps(args, ensure_ascii=False, default=str)[:300])
+            texto = json.dumps({"error": f"{type(exc).__name__}: {exc}"[:400]})
         if "requiere_confirmacion" in texto:
             self.confirmacion_pendiente = True
         elif args.get("confirmar"):

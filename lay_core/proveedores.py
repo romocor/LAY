@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from dataclasses import dataclass, field
 from typing import Callable
 
@@ -110,9 +111,72 @@ def herramientas_openai(tools: list[dict]) -> list[dict]:
     ]
 
 
+LLAMADA_EN_TEXTO = re.compile(r"^\s*(<tool_call>|```(json)?\s*\{|\{\s*\"(name|function)\")", re.I)
+
+
+def llamadas_en_texto(texto: str) -> list[Llamada]:
+    """Modelos locales chicos a veces ESCRIBEN la llamada como texto en vez de hacerla:
+    <tool_call>{"name": "app_abrir", "arguments": {...}}</tool_call>, ```json {...}``` o {...} suelto."""
+    limpio = re.sub(r"</?tool_call>|```(?:json)?", " ", texto, flags=re.I)
+    decod, salida, i = json.JSONDecoder(), [], 0
+    while (j := limpio.find("{", i)) >= 0:
+        try:
+            obj, i = decod.raw_decode(limpio, j)
+        except json.JSONDecodeError:
+            i = j + 1
+            continue
+        if not isinstance(obj, dict):
+            continue
+        funcion = obj.get("function") if isinstance(obj.get("function"), dict) else {}
+        nombre = (
+            obj.get("name")
+            or funcion.get("name")
+            or (obj["function"] if isinstance(obj.get("function"), str) else None)
+        )
+        args = obj.get("arguments", obj.get("parameters", funcion.get("arguments", {})))
+        if isinstance(args, str):
+            try:
+                args = json.loads(args)
+            except json.JSONDecodeError:
+                args = {}
+        if isinstance(nombre, str) and nombre:
+            salida.append(Llamada(f"texto_{len(salida)}", nombre, args if isinstance(args, dict) else {}))
+    return salida
+
+
+class _VozFiltrada:
+    """Pasa el texto a la voz, salvo que la respuesta empiece como una llamada escrita en JSON.
+    Si el primer carácter es { < o ` espera ~12 caracteres para decidir; si no, deja pasar todo."""
+
+    def __init__(self, destino: Callable[[str], None] | None) -> None:
+        self.destino, self.buffer, self.estado = destino, "", "dudoso"  # dudoso | hablar | callar
+
+    def __call__(self, trozo: str) -> None:
+        if self.destino is None or self.estado == "callar":
+            return
+        if self.estado == "hablar":
+            self.destino(trozo)
+            return
+        self.buffer += trozo
+        inicio = self.buffer.lstrip()
+        if not inicio:
+            return
+        if inicio[0] not in "{<`":
+            self.estado = "hablar"
+        elif len(inicio) >= 12:
+            self.estado = "callar" if LLAMADA_EN_TEXTO.match(inicio) else "hablar"
+        if self.estado == "hablar":
+            self.destino(self.buffer)
+
+    def cerrar(self) -> None:
+        if self.destino and self.estado == "dudoso" and self.buffer.strip() and not LLAMADA_EN_TEXTO.match(self.buffer):
+            self.destino(self.buffer)
+
+
 def leer_sse(lineas, al_texto: Callable[[str], None] | None) -> Turno:
     """Arma la respuesta desde el stream SSE de /chat/completions (texto + tool_calls por trozos)."""
     texto, llamadas = [], {}
+    voz = _VozFiltrada(al_texto)
     for linea in lineas:
         if not linea or not linea.startswith("data:"):
             continue
@@ -129,8 +193,7 @@ def leer_sse(lineas, al_texto: Callable[[str], None] | None) -> Turno:
             d = ch.get("delta") or {}
             if d.get("content"):
                 texto.append(d["content"])
-                if al_texto:
-                    al_texto(d["content"])
+                voz(d["content"])
             for tc in d.get("tool_calls") or []:
                 i = tc.get("index", len(llamadas))
                 acc = llamadas.setdefault(i, {"id": "", "nombre": "", "args": ""})
@@ -139,6 +202,7 @@ def leer_sse(lineas, al_texto: Callable[[str], None] | None) -> Turno:
                 acc["nombre"] += f.get("name") or ""
                 a = f.get("arguments")
                 acc["args"] += a if isinstance(a, str) else json.dumps(a or {})
+    voz.cerrar()
     salida = []
     for i, acc in sorted(llamadas.items()):
         try:
@@ -146,9 +210,14 @@ def leer_sse(lineas, al_texto: Callable[[str], None] | None) -> Turno:
         except json.JSONDecodeError:
             args = {}
         salida.append(Llamada(acc["id"] or f"llamada_{i}", acc["nombre"], args if isinstance(args, dict) else {}))
+    final = "".join(texto).strip()
+    if not salida and LLAMADA_EN_TEXTO.match(final):
+        salida = llamadas_en_texto(final)
+        if salida:
+            final = ""  # era una llamada escrita: se ejecuta, no se dice
     if salida and al_texto:
         al_texto("\n")
-    return Turno("".join(texto).strip(), salida)
+    return Turno(final, salida)
 
 
 class OpenAICompatible:

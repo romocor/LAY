@@ -124,3 +124,40 @@ def test_respaldo_nunca_usa_pago_sin_permiso(monkeypatch):
     monkeypatch.delenv("GROQ_API_KEY", raising=False)
     assert pv.orden_de_respaldo({"proveedor": "ollama"}) == ["ollama", "gemini"]
     assert pv.orden_de_respaldo({"proveedor": "ollama", "respaldo_pago": True})[-1] == "anthropic"
+
+
+@pytest.mark.parametrize(
+    "escrito,nombre,args",
+    [
+        (
+            '<tool_call>\n{"name": "app_abrir", "arguments": {"nombre": "calculadora"}}\n</tool_call>',
+            "app_abrir",
+            {"nombre": "calculadora"},
+        ),
+        (
+            '```json\n{"name": "volumen", "arguments": "{\\"accion\\": \\"subir\\"}"}\n```',
+            "volumen",
+            {"accion": "subir"},
+        ),
+        ('{"function": {"name": "clima", "arguments": {}}}', "clima", {}),
+    ],
+)
+def test_llamada_escrita_como_texto_se_ejecuta_y_no_se_dice(escrito, nombre, args):
+    cuerpo = sse(*[{"choices": [{"delta": {"content": escrito[i : i + 7]}}]} for i in range(0, len(escrito), 7)])
+    cli, _ = transporte({"/models": (200, {"data": []}), "/chat/completions": (200, cuerpo)})
+    dicho = []
+    t = pv.OpenAICompatible("ollama", {}, cliente=cli).turno(
+        "s", [{"rol": "usuario", "texto": "x"}], [], "rapido", 100, dicho.append
+    )
+    assert [(c.nombre, c.args) for c in t.llamadas] == [(nombre, args)] and t.texto == ""
+    assert "{" not in "".join(dicho)  # la voz nunca lee el JSON
+
+
+def test_texto_normal_pasa_completo_a_la_voz():
+    cuerpo = sse(*[{"choices": [{"delta": {"content": t}}]} for t in ["La ", "CPU está ", "al 23 %. {ojo}"]])
+    cli, _ = transporte({"/models": (200, {"data": []}), "/chat/completions": (200, cuerpo)})
+    dicho = []
+    t = pv.OpenAICompatible("ollama", {}, cliente=cli).turno(
+        "s", [{"rol": "usuario", "texto": "x"}], [], "rapido", 100, dicho.append
+    )
+    assert "".join(dicho) == "La CPU está al 23 %. {ojo}" and t.llamadas == []

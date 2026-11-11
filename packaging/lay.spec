@@ -40,7 +40,8 @@ datas += [(os.path.join(RAIZ, "overlay"), "overlay"), (os.path.join(RAIZ, "confi
           (os.path.join(SPECPATH, "lay.ico"), ".")]  # noqa: F821
 
 a = Analysis([os.path.join(RAIZ, "lay.py")], pathex=[RAIZ], binaries=binaries, datas=datas, hiddenimports=hidden,
-             excludes=["tkinter", "matplotlib", "pytest", "IPython"], noarchive=False)
+             # NO excluir matplotlib ni tkinter: mediapipe.solutions.drawing_utils importa matplotlib.pyplot al arrancar
+             excludes=["pytest", "IPython"], noarchive=False)
 pyz = PYZ(a.pure)
 icono = os.path.join(SPECPATH, "lay.ico")  # noqa: F821
 
