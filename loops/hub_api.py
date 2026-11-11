@@ -36,6 +36,8 @@ SECRETOS_PERMITIDOS = {
 }
 CONFIG_PERMITIDA = {
     "camara",
+    "navegador_perfil",
+    "navegador",
     "nombre",
     "usuario",
     "wake_words",

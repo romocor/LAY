@@ -84,6 +84,14 @@ GRUPOS: dict[str, tuple[re.Pattern, set[str]]] = {
         re.compile(r"escrib|tecl|atajo|captura|copia|pega|guarda|dicta", re.I),
         {"teclado_escribir", "teclado_atajo", "pantalla_capturar"},
     ),
+    "musica": (
+        re.compile(r"spotify|youtube|canci[oó]n|m[uú]sica|pon\b|ponme|reproduc|escuchar|video|playlist|toca\b", re.I),
+        {"spotify_reproducir", "youtube_reproducir", "multimedia", "volumen"},
+    ),
+    "apps": (
+        re.compile(r"busca .+ en |dentro de|haz clic|clic en|pulsa|presiona|escribe en|en la app|en el programa", re.I),
+        {"app_buscar", "ui_elementos", "ui_click", "ui_escribir", "ui_leer_texto", "app_abrir"},
+    ),
     "manos": (
         re.compile(r"c[aá]mara|gesto|mis manos|las manos|holo|tony|escane|explorador", re.I),
         {"camara", "manos_activar", "gesto_entrenar", "gestos_listar", "gesto_borrar", "carpeta_abrir"},

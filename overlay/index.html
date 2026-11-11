@@ -201,6 +201,7 @@ body.explorando .core *,body.explorando .core:before,body.oculto *,body.oculto *
   <label>Sensibilidad de "LAY" <span id="wakeV"></span></label><input type="range" id="wake" min="0.5" max="0.95" step="0.05">
   <div class="sub">Sube si se activa sola; baja si no te oye.</div>
   <div class="fila"><div><label>Cámara (n.º)</label><input type="number" id="camara" min="0" max="9"></div><div><label>Micrófono (n.º, vacío = predeterminado)</label><input type="number" id="micro" min="0"></div></div>
+  <label>Navegador</label><select id="navPerfil"><option value="propio">Mi navegador de siempre (mis cuentas y pestañas)</option><option value="lay">Perfil de LAY (puede leer y clicar todo por dentro)</option></select>
   <button class="btn" id="guardarVoz">Guardar</button><div class="res" id="resVoz"></div>
  </section>
  <section data-sec="remoto" style="flex:1"><h3>Control desde el celular</h3><p class="sub">Usa LAY desde fuera de casa de forma privada con Tailscale (gratis).</p>
@@ -483,7 +484,7 @@ async function abrirConfig(tab){
   $('apActivo').checked=c.aplausos.activo;$('apSens').value=c.aplausos.sensibilidad;$('apSensV').textContent=Math.round(c.aplausos.sensibilidad*100)+'%';
   $('apTriple').innerHTML=[['','Nada']].concat(Object.keys(c.workspaces||{}).map(w=>['workspace:'+w,'Workspace "'+w+'"']),Object.keys(c.apps||{}).map(a=>['app:'+a,'Abrir '+a])).map(([v,t])=>`<option value="${esc(v)}" ${c.aplausos.accion_triple===v?'selected':''}>${esc(t)}</option>`).join('');
   $('usuario').value=c.usuario||'';$('vozTts').innerHTML=CFG.voces.map(v=>`<option ${v===c.voz_tts?'selected':''}>${v}</option>`).join('');
-  $('wake').value=c.confianza_wake;$('wakeV').textContent=Math.round(c.confianza_wake*100)+'%';$('camara').value=c.camara_indice;$('micro').value=c.microfono??'';
+  $('wake').value=c.confianza_wake;$('wakeV').textContent=Math.round(c.confianza_wake*100)+'%';$('camara').value=c.camara_indice;$('navPerfil').value=c.navegador_perfil||'propio';$('micro').value=c.microfono??'';
   $('soloTs').checked=c.remoto.solo_tailscale!==false;
   $('camInicio').checked=!!(c.camara&&c.camara.al_inicio);listarGestos();
   estadoIA();infoRemoto();
@@ -527,7 +528,7 @@ $('guardarCorreo').onclick=()=>{const id=$('outlookId').value.trim();if(!id)retu
 $('apSens').oninput=()=>$('apSensV').textContent=Math.round($('apSens').value*100)+'%';
 $('wake').oninput=()=>$('wakeV').textContent=Math.round($('wake').value*100)+'%';
 $('guardarAp').onclick=()=>guardar({aplausos:{activo:$('apActivo').checked,sensibilidad:+$('apSens').value,accion_triple:$('apTriple').value}},null,'resAp');
-$('guardarVoz').onclick=()=>guardar({usuario:$('usuario').value.trim()||'Robert',voz_tts:$('vozTts').value,confianza_wake:+$('wake').value,camara_indice:+$('camara').value||0,microfono:$('micro').value===''?null:+$('micro').value},null,'resVoz');
+$('guardarVoz').onclick=()=>guardar({usuario:$('usuario').value.trim()||'Robert',voz_tts:$('vozTts').value,confianza_wake:+$('wake').value,camara_indice:+$('camara').value||0,microfono:$('micro').value===''?null:+$('micro').value,navegador_perfil:$('navPerfil').value},null,'resVoz');
 $('activarRem').onclick=async()=>{try{const r=await api('/api/remoto/token',{});await guardar({remoto:{activo:true,solo_tailscale:$('soloTs').checked}},null,'resRem');
   res('resRem','Token nuevo creado (el anterior deja de servir). '+r.aviso,true);infoRemoto()}catch(e){res('resRem',e.message,false)}};
 $('desactivarRem').onclick=async()=>{await guardar({remoto:{activo:false}},null,'resRem');infoRemoto()};

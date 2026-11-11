@@ -125,6 +125,15 @@ Cada fase se ejecuta con `/fase N` (loop planificar → implementar → verifica
 - [x] Investigado en GitHub (isair/jarvis, GauravSingh9356/J.A.R.V.I.S, clawdcursor, AnubhavChaturvedi): web gratis (DuckDuckGo + Wikipedia), clima (Open-Meteo), recordatorios/alarmas/temporizadores con voz y notificación, memoria de largo plazo con bloqueo de secretos.
 - [ ] Próximas ideas de GitHub: dictado con tecla (offline, pegar en cualquier app), leer la pantalla con OCR de Windows, visión con cámara (modelo local multimodal), WhatsApp Web, Home Assistant.
 
+## v2.9.0 — Música de verdad, control de cualquier app, puntería de manos
+- [x] "pon X" / "reproduce X en Spotify": busca la canción, la abre en la app y verifica que suene (título de ventana); si Spotify solo muestra la página, pulsa Reproducir por UI Automation. Antes solo hacía play/pausa de lo que ya sonaba.
+- [x] "pon el video de X" / "abre youtube y pon X": primer video de YouTube, que suena solo.
+- [x] "busca X en <app>" (Outlook, Explorador, WhatsApp, Teams, VS Code, Spotify…): caja de búsqueda por UI Automation o el atajo de esa app.
+- [x] "haz clic en <botón>" / "pulsa <botón>" sobre la app que tienes al frente (ventana="activa").
+- [x] Navegador: por defecto abre en TU Brave/Chrome (tus cuentas); leer = misma página por internet, clic/escribir = UI Automation sobre la ventana. Perfil de LAY opcional para control total con Playwright.
+- [x] Manos: zona activa (las esquinas de la pantalla ya se alcanzan), el esqueleto dibujado coincide con el cursor, y al pellizcar el cursor se congela donde apuntabas (antes el clic se corría).
+- [x] Diagnóstico: canciones en Spotify/YouTube y clic en la ventana activa.
+
 ## v2.8.0 — Rendimiento, cámara bajo demanda, gestos entrenables, navegador fiable
 - [x] Navegador: abrir una web o búsqueda ya no depende de Playwright (lanza Brave/Chrome directo, instantáneo). Playwright solo para leer/clicar, con tiempo límite, auto-reinicio si se cuelga y errores legibles (antes: "ToolError" vacío).
 - [x] "busca youtube" abre YouTube; "busca en youtube X" busca X.

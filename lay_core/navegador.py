@@ -196,8 +196,16 @@ def a_url(t: str) -> str:
 
 
 # ---------------- acciones (todas corren en el hilo del navegador) ----------------
+def perfil_propio() -> bool:
+    return str(getattr(CONFIG, "navegador_perfil", "propio")).lower() != "lay"
+
+
 def _lanzar(elegido: str, exe: str, url: str) -> None:
-    """Abre la URL en el perfil de LAY. Si ese navegador ya corre, Chrome/Brave/Edge la abren en una pestaña nueva."""
+    """Abre la URL. Perfil propio: pestaña nueva en el navegador de Robert (con sus cuentas).
+    Perfil LAY: el perfil aparte que LAY controla por dentro."""
+    if perfil_propio():
+        subprocess.Popen([exe, url], creationflags=getattr(subprocess, "DETACHED_PROCESS", 0))
+        return
     perfil = DATA_DIR / "navegador" / elegido
     perfil.mkdir(parents=True, exist_ok=True)
     subprocess.Popen(
@@ -230,7 +238,7 @@ def abrir(destino: str, navegador: str | None = None, pestana_nueva: bool = True
         _lanzar(elegido, exe, url)
     except OSError as exc:
         return {"error": f"No pude abrir {elegido}: {exc}"}
-    _estado.update(nombre=elegido, pagina=None, url_esperada=url)  # la pestaña nueva pasa a ser la actual
+    _estado.update(nombre=elegido, pagina=None, url_esperada=url, url=url)  # la pestaña nueva pasa a ser la actual
     return {"ok": True, "navegador": elegido, "url": url}
 
 
@@ -267,6 +275,15 @@ def _leer(max_caracteres: int) -> dict:
 
 
 def leer(max_caracteres: int = 5000) -> dict:
+    if perfil_propio():
+        # en el navegador propio no se puede entrar por dentro: se lee la misma página por internet
+        if not _estado.get("url"):
+            return {
+                "error": "Primero ábreme una página (o activa el perfil de LAY para leer lo que ya tienes abierto)."
+            }
+        from lay_core import informacion
+
+        return {**informacion.leer_pagina(_estado["url"], max_caracteres), "aviso": AVISO_EXTERNO}
     return _en_hilo(_leer, max_caracteres)
 
 
@@ -275,7 +292,27 @@ def _elementos(maximo: int) -> dict:
     return {"aviso": AVISO_EXTERNO, "url": p.url, "elementos": p.evaluate(JS_ELEMENTOS, maximo)}
 
 
+def _ui_navegador():
+    """En el navegador propio se actúa con UI Automation sobre la ventana de Brave/Chrome/Edge."""
+    from lay_core import windows
+
+    nombre = {"brave": "Brave", "chrome": "Chrome", "edge": "Edge"}.get(_estado.get("nombre") or "", "")
+    if not nombre:
+        nombre = next((n for n in ("Brave", "Chrome", "Edge") if n.lower() in rutas_navegadores()), "Chrome")
+    return windows, nombre
+
+
+def _por_ui(fn) -> dict:
+    try:
+        return fn()
+    except Exception as exc:  # noqa: BLE001
+        return {"error": str(exc) or type(exc).__name__}
+
+
 def elementos(maximo: int = 60) -> dict:
+    if perfil_propio():
+        w, nombre = _ui_navegador()
+        return _por_ui(lambda: w.elementos(nombre, maximo))
     return _en_hilo(_elementos, maximo)
 
 
@@ -319,6 +356,9 @@ def _click(objetivo: str, confirmado: bool) -> dict:
 
 
 def click(objetivo: str, confirmar: bool = False) -> dict:
+    if perfil_propio():
+        w, nombre = _ui_navegador()
+        return _por_ui(lambda: w.click(nombre, objetivo, confirmar))
     return _en_hilo(_click, objetivo, confirmar)
 
 
@@ -337,6 +377,9 @@ def _escribir(campo: str, texto: str, enviar: bool) -> dict:
 
 def escribir(campo: str, texto: str) -> dict:
     """Escribe en un campo SIN enviar."""
+    if perfil_propio():
+        w, nombre = _ui_navegador()
+        return _por_ui(lambda: w.escribir(nombre, campo, texto))
     return _en_hilo(_escribir, campo, texto, False)
 
 

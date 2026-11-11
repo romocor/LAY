@@ -141,11 +141,11 @@ def test_mouse_usa_todo_el_escritorio(monkeypatch):
     monkeypatch.setitem(sys.modules, "pyautogui", types.SimpleNamespace(moveTo=lambda x, y, **k: movs.append((x, y))))
     monkeypatch.setattr(gestos.Clasificador, "_escritorio", (-1920, 0, 1920 + 2560 + 1920, 1440))
     c = gestos.Clasificador(lambda e: None)
-    c._mouse_mover((0.86, 0.5))  # mano a la derecha del cuadro -> monitor derecho
+    c._mouse_mover((0.86, 0.5))  # cursor (ya en coordenadas de pantalla) a la derecha -> monitor derecho
     assert movs[-1][0] > 2560
-    c._mouse_mover((0.861, 0.5))  # temblor mínimo: zona muerta, no se mueve
+    c._mouse_mover((0.8605, 0.5))  # temblor mínimo: zona muerta, no se mueve
     assert len(movs) == 1
-    c._mouse_mover((0.14, 0.5))
+    c._mouse_mover((-0.02, 0.5))
     assert movs[-1][0] == -1920  # borde izquierdo del monitor izquierdo (coordenada negativa)
 
 
@@ -215,3 +215,22 @@ def test_sin_manos_solo_avisa_una_vez():
     for k in range(10):
         c.procesar(vacio, k * 0.03)
     assert sum(1 for e in g if e["tipo"] == "manos") == 1
+
+
+def test_zona_activa_llega_a_las_esquinas():
+    assert gestos.a_pantalla(0.15, 0.15) == (0.0, 0.0)
+    x, y = gestos.a_pantalla(0.85, 0.85)
+    assert abs(x - 1) < 1e-9 and abs(y - 1) < 1e-9
+
+
+def test_al_pellizcar_el_clic_cae_donde_apuntabas():
+    """Cerrar pulgar e índice mueve su punto medio; el cursor debe quedarse quieto."""
+    ev = []
+    c = gestos.Clasificador(ev.append)
+    for i in range(10):  # apunta quieto con la mano abierta
+        c.procesar(resultado(("Right", mano(0.5, 0.5))), i / 30)
+    antes = c.manos["Right"].cursor
+    for i in range(10, 16):  # cierra el pellizco (las puntas se juntan y se desplazan)
+        c.procesar(resultado(("Right", mano(0.5, 0.5, pinch=True))), i / 30)
+    inicio = [e for e in ev if e.get("gesto") == "pinch_inicio"][0]
+    assert abs(inicio["x"] - antes[0]) < 0.02 and abs(inicio["y"] - antes[1]) < 0.02

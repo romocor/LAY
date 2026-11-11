@@ -136,6 +136,9 @@ def p_navegador() -> str:
     disp = navegador.rutas_navegadores()
     if not disp:
         raise RuntimeError("no hay Brave, Chrome ni Edge")
+    from lay_core.config import CONFIG
+
+    CONFIG.navegador_perfil = "lay"  # aquí se prueba el control por dentro (Playwright)
     r = navegador.abrir("https://example.com")
     if "error" in r:
         raise RuntimeError(r["error"])
@@ -193,6 +196,29 @@ def p_volumen() -> str:
     return f"volumen {r.get('volumen', '?')} %"
 
 
+def p_musica() -> str:
+    from lay_core import musica
+
+    sp = musica.buscar_id_spotify("Nadie Sabe Bad Bunny", "track")
+    yt = musica.primer_video_youtube("Nadie Sabe Bad Bunny")
+    if not sp and not yt:
+        raise RuntimeError("no encontré la canción ni en Spotify ni en YouTube")
+    app = "app Spotify instalada" if musica.spotify_exe() else "Spotify no instalado (usa la web)"
+    return f"Spotify: {'ID ' + sp[1] if sp else 'sin ID'} · YouTube: {'video ' + yt if yt else 'sin video'} · {app}"
+
+
+def p_ventana_activa() -> str:
+    from lay_core import windows
+
+    proc = subprocess.Popen(["notepad.exe"])
+    try:
+        time.sleep(2.5)
+        w = windows._ventana("activa")
+        return f"ventana activa: '{w.window_text()[:40]}'"
+    finally:
+        proc.terminate()
+
+
 PRUEBAS: list[tuple[str, str, Callable[[], str], float, bool]] = [
     # (clave, nombre, función, límite s, se prueba en CI)
     ("manos", "Manos (MediaPipe)", p_manos_import, 60, True),
@@ -206,6 +232,8 @@ PRUEBAS: list[tuple[str, str, Callable[[], str], float, bool]] = [
     ("navegador", "Control del navegador", p_navegador, 90, True),
     ("windows_ui", "Control de apps de Windows", p_windows_ui, 45, True),
     ("apps", "Apps instaladas", p_apps, 30, True),
+    ("musica", "Poner canciones (Spotify/YouTube)", p_musica, 40, True),
+    ("ventana_activa", "Clic en la app que tienes al frente", p_ventana_activa, 30, True),
     ("volumen", "Volumen", p_volumen, 10, False),
 ]
 

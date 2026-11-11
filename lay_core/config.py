@@ -55,6 +55,9 @@ class LayConfig:
     usuario: str = "Robert"
     ciudad: str = "Lima"  # para el clima
     actualizaciones: dict = field(default_factory=lambda: {"repo": "romocor/LAY"})
+    # "propio": abre en TU Brave/Chrome de siempre (tus cuentas y pestañas).
+    # "lay": perfil aparte que LAY puede leer y clicar por dentro (control total).
+    navegador_perfil: str = "propio"
     navegador: str = "predeterminado"  # brave | chrome | edge | predeterminado (el primero instalado)
     camara_indice: int = 0
     # Cámara bajo demanda + ajustes de rendimiento (resolución baja + modelo ligero = menos CPU/RAM)

@@ -221,6 +221,40 @@ def manos_activar(carpeta: str | None = None) -> dict:
 
 
 @mcp.tool()
+def spotify_reproducir(consulta: str, tipo: str | None = None) -> dict:
+    """Pone en Spotify la canción, artista, álbum o playlist que Robert pide ("pon Nadie Sabe de Bad Bunny").
+    tipo opcional: track | artist | album | playlist. No es play/pausa: para eso usa multimedia."""
+    from lay_core import musica
+
+    return musica.spotify_reproducir(consulta, tipo)
+
+
+@mcp.tool()
+def youtube_reproducir(consulta: str, navegador: str | None = None) -> dict:
+    """Busca en YouTube y abre el primer video, que empieza a sonar solo ("pon el video de X")."""
+    from lay_core import musica
+
+    return musica.youtube_reproducir(consulta, navegador)
+
+
+@mcp.tool()
+def app_buscar(app: str, consulta: str) -> dict:
+    """Busca DENTRO de una app de escritorio (Outlook, Explorador, WhatsApp, Teams, VS Code, Spotify…):
+    la abre si hace falta, usa su caja de búsqueda y presiona Enter. Para webs usa navegador_abrir."""
+    if "spotify" in app.lower():
+        from urllib.parse import quote
+
+        from lay_core import musica
+
+        try:
+            musica._abrir_uri(f"spotify:search:{quote(consulta)}")
+            return {"ok": True, "app": "Spotify", "buscado": consulta}
+        except (OSError, RuntimeError) as exc:
+            return {"error": f"No pude abrir Spotify: {exc}"}
+    return windows.buscar_en_app(app, consulta)
+
+
+@mcp.tool()
 def camara(accion: str = "encender") -> dict:
     """Enciende o apaga la cámara de gestos ("LAY, activa la cámara" / "desactiva la cámara").
     accion: encender | apagar. Apagada no gasta CPU ni RAM."""
@@ -468,29 +502,38 @@ def app_abrir(nombre: str) -> dict:
     return r if "error" not in r else windows.abrir_app(nombre)
 
 
+def _ui(fn) -> dict:
+    """UI Automation nunca debe tumbar la herramienta: siempre un error legible."""
+    try:
+        return fn()
+    except Exception as exc:  # noqa: BLE001
+        return {"error": str(exc) or type(exc).__name__}
+
+
 @mcp.tool()
 def ui_elementos(ventana: str, maximo: int = 70) -> dict:
     """Lee botones, menús, pestañas y campos de CUALQUIER ventana de Windows (por título parcial),
     con un id para ui_click/ui_escribir. Así LAY navega apps que no tienen herramienta propia."""
-    return windows.elementos(ventana, maximo)
+    return _ui(lambda: windows.elementos(ventana, maximo))
 
 
 @mcp.tool()
 def ui_click(ventana: str, objetivo: str, confirmar: bool = False) -> dict:
-    """Pulsa un botón/menú/pestaña de una ventana por su nombre o id. Enviar/borrar/pagar piden confirmación."""
-    return windows.click(ventana, objetivo, confirmar)
+    """Pulsa un botón/menú/pestaña de una ventana por su nombre o id. ventana="activa" = la que Robert tiene
+    al frente. Enviar/borrar/pagar piden confirmación."""
+    return _ui(lambda: windows.click(ventana, objetivo, confirmar))
 
 
 @mcp.tool()
 def ui_escribir(ventana: str, campo: str, texto: str) -> dict:
     """Escribe en un campo de una ventana (por nombre o id). Nunca contraseñas."""
-    return windows.escribir(ventana, campo, texto)
+    return _ui(lambda: windows.escribir(ventana, campo, texto))
 
 
 @mcp.tool()
 def ui_leer_texto(ventana: str) -> dict:
     """Lee el texto visible de una ventana (documento, chat, lista) sin usar el portapapeles."""
-    return windows.leer_texto(ventana)
+    return _ui(lambda: windows.leer_texto(ventana))
 
 
 @mcp.tool()

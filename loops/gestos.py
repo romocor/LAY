@@ -49,6 +49,17 @@ BASE = {"indice": 5, "medio": 9, "anular": 13, "menique": 17}
 # Umbrales por defecto; `--calibrar` los ajusta a tu mano y cámara (lay.json -> "gestos")
 _G = {"pinch_on": 0.33, "pinch_off": 0.45, "swipe_vel": 2.2, "complejidad": 0, **getattr(CONFIG, "gestos", {})}
 ESCANEO_SEG = 1.2
+# Zona activa: el 15 % de cada borde de la cámara queda fuera. La mano sale de cuadro ANTES de llegar
+# al borde de la imagen, así que sin esto las esquinas de la pantalla eran inalcanzables.
+ZONA = float(_G.get("zona", 0.15))
+
+
+def a_pantalla(x: float, y: float) -> tuple[float, float]:
+    """Cámara (0-1) -> pantalla (0-1) usando la zona activa."""
+    k = 1 - 2 * ZONA
+    return (x - ZONA) / k, (y - ZONA) / k
+
+
 PINCH_ON, PINCH_OFF = _G["pinch_on"], _G["pinch_off"]  # histéresis, relativo al tamaño de la mano
 SWIPE_VEL = _G["swipe_vel"]
 TAP_MAX_S, DOBLE_TAP_S = 0.28, 0.45
@@ -103,6 +114,7 @@ class EstadoMano:
     fy: OneEuro = field(default_factory=OneEuro)
     y_scroll: float | None = None
     puno_avisado: bool = False
+    ancla: tuple | None = None  # (cursor, muñeca) al empezar a pellizcar: el clic cae donde apuntabas
 
 
 class Clasificador:
@@ -153,7 +165,10 @@ class Clasificador:
 
         if vistas or not self.vacio_enviado:  # sin manos: un solo aviso, no 30 por segundo
             self.emitir(
-                {"tipo": "manos", "manos": {k: [[round(p.x, 3), round(p.y, 3)] for p in v] for k, v in vistas.items()}}
+                {
+                    "tipo": "manos",
+                    "manos": {k: [[round(c, 3) for c in a_pantalla(p.x, p.y)] for p in v] for k, v in vistas.items()},
+                }
             )
         self.vacio_enviado = not vistas
 
@@ -274,10 +289,20 @@ class Clasificador:
 
         # Cursor = punto medio pulgar-índice, filtrado One Euro. El frame ya llega
         # espejado (main() hace flip), así que x crece hacia la derecha de Robert.
-        cx, cy = (lm[4].x + lm[8].x) / 2, (lm[4].y + lm[8].y) / 2
-        e.cursor = (e.fx(cx, t), e.fy(cy, t))
+        cx, cy = a_pantalla((lm[4].x + lm[8].x) / 2, (lm[4].y + lm[8].y) / 2)
+        e.muneca = a_pantalla(lm[0].x, lm[0].y)  # estable al pellizcar: sirve para distinguir tap de arrastre
+        if e.pinch or d_pinch < PINCH_OFF * 1.25:
+            # Al cerrar los dedos el punto medio pulgar-índice se corre: el cursor se CONGELA donde
+            # apuntabas y, ya pellizcando, se mueve con la muñeca (que no se mueve al pellizcar).
+            if e.ancla is None:
+                e.ancla = (e.cursor, e.muneca)
+            (c0x, c0y), (m0x, m0y) = e.ancla
+            nx, ny = c0x + (e.muneca[0] - m0x), c0y + (e.muneca[1] - m0y)
+            e.cursor = (e.fx(nx, t), e.fy(ny, t))
+        else:
+            e.ancla = None
+            e.cursor = (e.fx(cx, t), e.fy(cy, t))
         e.historial.append((t, *e.cursor))
-        e.muneca = (lm[0].x, lm[0].y)  # estable al pellizcar: sirve para distinguir tap de arrastre
 
         # Puño 0,7 s -> "puno" (calla a LAY) · puño 2 s -> pausa/reanuda el seguimiento
         if ext == 0 and d_pinch > PINCH_OFF:
@@ -454,9 +479,9 @@ class Clasificador:
         import pyautogui
 
         x0, y0, w, h = self.escritorio_virtual()
-        # margen: el 15 % del borde del cuadro de cámara mapea al borde del escritorio
-        x = int(x0 + min(max((c[0] - 0.15) / 0.7, 0), 1) * (w - 1))
-        y = int(y0 + min(max((c[1] - 0.15) / 0.7, 0), 1) * (h - 1))
+        # el cursor ya viene en coordenadas de pantalla (zona activa aplicada en _mano)
+        x = int(x0 + min(max(c[0], 0), 1) * (w - 1))
+        y = int(y0 + min(max(c[1], 0), 1) * (h - 1))
         ultimo = getattr(self, "_ultimo_mouse", None)
         if ultimo and abs(x - ultimo[0]) < 6 and abs(y - ultimo[1]) < 6:
             return  # zona muerta: el cursor no baila mientras apuntas para hacer clic

@@ -60,8 +60,30 @@ def _ps(comando: str, timeout: int = 20) -> str:
 
 
 # ---------------- UI Automation ----------------
+ACTIVA = {"", "activa", "actual", "esta", "la activa", "ventana activa", "app activa"}
+
+
+def _ventana_activa():
+    """La ventana en la que Robert está trabajando: la de más arriba que no sea LAY ni la barra de tareas."""
+    from pywinauto import Desktop
+
+    for w in Desktop(backend="uia").windows(visible_only=True):  # en orden Z: la de arriba primero
+        try:
+            t = w.window_text()
+            r = w.rectangle()
+        except Exception:
+            continue
+        if t and t != "LAY" and not t.startswith("LAY —") and r.width() > 200 and r.height() > 150:
+            if w.element_info.class_name not in ("Shell_TrayWnd", "Progman", "WorkerW"):
+                return w
+    raise RuntimeError("No encontré ninguna ventana abierta.")
+
+
 def _ventana(titulo: str):
     from pywinauto import Desktop
+
+    if titulo.strip().lower() in ACTIVA:
+        return _ventana_activa()
 
     patron = re.escape(titulo)
     ventanas = [
@@ -118,6 +140,8 @@ def elementos(ventana: str, maximo: int = 70) -> dict:
 
 def _buscar_elemento(ventana: str, objetivo: str):
     objetivo = str(objetivo).strip()
+    if ventana.strip().lower() in ACTIVA:
+        _cache.pop(ventana.lower(), None)  # la ventana activa cambia: siempre se lee de nuevo
     cache = _cache.get(ventana.lower())
     if objetivo.isdigit() and cache and int(objetivo) in cache:
         el = cache[int(objetivo)]
@@ -363,3 +387,72 @@ def energia(accion: str) -> dict:
         return {"error": "accion: suspender, reiniciar, apagar o cancelar"}
     subprocess.Popen(cmds[accion], creationflags=SIN_VENTANA)
     return {"ok": True, "accion": accion, "nota": "30 s para cancelar" if accion in ("reiniciar", "apagar") else ""}
+
+
+ATAJOS_BUSCAR = {
+    "spotify": ("ctrl", "k"),
+    "explorador": ("ctrl", "e"),
+    "explorer": ("ctrl", "e"),
+    "outlook": ("ctrl", "e"),
+    "whatsapp": ("ctrl", "f"),
+    "visual studio code": ("ctrl", "p"),
+    "code": ("ctrl", "p"),
+    "teams": ("ctrl", "e"),
+    "discord": ("ctrl", "k"),
+    "slack": ("ctrl", "k"),
+    "word": ("ctrl", "b"),
+    "excel": ("ctrl", "b"),
+    "revit": ("f3",),
+}
+BUSCADOR = re.compile(r"buscar|search|busca|qu[eé] quieres|find|filtr|search box", re.I)
+
+
+def buscar_en_app(app: str, consulta: str) -> dict:
+    """Busca DENTRO de una app abierta (Spotify, Explorador, Outlook, WhatsApp, VS Code…):
+    abre/enfoca la app, encuentra su caja de búsqueda por UI Automation y escribe + Enter.
+    Si la app no expone la caja, prueba los atajos típicos (Ctrl+K, Ctrl+F, Ctrl+E)."""
+    import pyautogui
+
+    try:
+        w = _ventana(app)
+    except RuntimeError:
+        r = abrir_app(app)
+        if "error" in r:
+            return r
+        time.sleep(3)
+        try:
+            w = _ventana(app)
+        except RuntimeError as exc:
+            return {"error": str(exc)}
+    w.set_focus()
+    caja = None
+    for el in w.descendants(control_type="Edit"):
+        try:
+            nombre = el.element_info.name or ""
+            if el.is_visible() and (BUSCADOR.search(nombre) or not nombre):
+                caja = el
+                if BUSCADOR.search(nombre):
+                    break
+        except Exception:
+            continue
+    if caja is not None:
+        try:
+            caja.click_input()
+            caja.set_edit_text(consulta)
+        except Exception:
+            pyautogui.hotkey("ctrl", "a", _pause=False)
+            pyautogui.typewrite(consulta, interval=0.01)
+        pyautogui.press("enter", _pause=False)
+        return {"ok": True, "app": w.window_text()[:60], "buscado": consulta, "como": "caja de búsqueda"}
+    # la app no expone su caja: atajo de búsqueda típico de esa app (o Ctrl+F)
+    nombre = w.window_text().lower() + " " + app.lower()
+    atajo = next((k for app_, k in ATAJOS_BUSCAR.items() if app_ in nombre), ("ctrl", "f"))
+    import pyperclip
+
+    pyautogui.hotkey(*atajo, _pause=False)
+    time.sleep(0.5)
+    pyperclip.copy(consulta)  # pegar respeta tildes y ñ (typewrite no)
+    pyautogui.hotkey("ctrl", "a", _pause=False)
+    pyautogui.hotkey("ctrl", "v", _pause=False)
+    pyautogui.press("enter", _pause=False)
+    return {"ok": True, "app": w.window_text()[:60], "buscado": consulta, "como": "+".join(atajo)}

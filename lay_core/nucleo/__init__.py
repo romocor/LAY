@@ -180,6 +180,32 @@ def extraer(intencion: str, original: str) -> dict:
             if re.search(r"anterior|regresa|atras", t)
             else "pausa"
         )
+    elif intencion == "reproducir":
+        d["plataforma"] = "youtube" if re.search(r"youtube|video", t) else "spotify"
+        q = re.sub(
+            r"^(lay\s+)?(busca(me)?|pon(me|la)?|reproduce|quiero (escuchar|ver)|toca|dale play a|escuchemos|"
+            r"en spotify pon|en youtube pon)\s+",
+            "",
+            t,
+        )
+        q = re.sub(r"\s+(en|por)\s+(spotify|youtube)(\s+y\s+(ponla|ponlo|reproducela|reproducelo))?$", "", q)
+        q = re.sub(r"^(en spotify|en youtube)\s+", "", q)
+        q = re.sub(r"^(musica de|algo de|la cancion|el video de|la musica de)\s+", "", q)
+        d["consulta"] = q.strip()
+    elif intencion == "clic":
+        d["objetivo"] = re.sub(
+            r"^.*?\b(clic en|click en|clic a|pulsa|presiona( el boton)?|aprieta|selecciona|dale a|toca el boton)\s+",
+            "",
+            t,
+        ).strip()
+    elif intencion == "buscar_en_app":
+        m = re.search(r"busca(?:me)?\s+(.+?)\s+en\s+(.+)$", t) or re.search(r"encuentra\s+(.+?)\s+en\s+(.+)$", t)
+        if m:
+            d["consulta"], d["app"] = m.group(1).strip(), m.group(2).strip()
+        else:
+            m = re.search(r"(?:en|dentro de|abre)\s+(.+?)\s+(?:y\s+)?busca\s+(.+)$", t)
+            d["app"], d["consulta"] = (m.group(1).strip(), m.group(2).strip()) if m else ("", "")
+        d["app"] = re.sub(r"^(el|la|mi|mis)\s+", "", d["app"])
     elif intencion == "brillo":
         n = numero(t)
         if n is not None and re.search(r"\b(al|en|a)\b", t):
@@ -266,6 +292,19 @@ def entender(texto: str) -> Comprension:
         return Comprension("negar", 0.99)
     if intencion == "abrir_app" and any(re.search(rf"\b{k}\b", t) for k in SITIOS) and not re.search(r"\bapp\b", t):
         intencion = "abrir_web"
+    m_y = re.search(r"\b(spotify|youtube)\b.*\by\s+(pon|ponme|reproduce|busca)\s+(.+)$", t)
+    if m_y and intencion in ("abrir_app", "abrir_web", "youtube", "buscar_web", "reproducir"):
+        intencion, conf = "reproducir", max(conf, UMBRAL)
+        datos_y = {"plataforma": m_y.group(1), "consulta": m_y.group(3).strip()}
+    else:
+        datos_y = None
+    # "pon/reproduce <algo>" que el modelo no reconoce y no es volumen/brillo/ventana -> es música
+    if (
+        conf < UMBRAL
+        and re.match(r"^(pon|ponme|reproduce|toca|quiero escuchar)\s+\w", t)
+        and not re.search(r"volumen|brillo|monitor|pantalla|ventana|temporizador|alarma|recordatorio|modo", t)
+    ):
+        intencion, conf = "reproducir", UMBRAL
     if intencion in ("abrir_app", "abrir_archivo") and re.search(r"\bcarpeta\b", t):
         intencion = "abrir_carpeta"
     # "abre <algo>" sin pistas de archivo/imagen/carpeta/web y el modelo duda -> es una app (aunque esté mal escrita)
@@ -277,7 +316,7 @@ def entender(texto: str) -> Comprension:
         and not any(re.search(rf"\b{k}\b", t) for k in SITIOS)
     ):
         intencion, conf = "abrir_app", max(conf, UMBRAL)
-    return Comprension(intencion, conf, extraer(intencion, texto), segunda)
+    return Comprension(intencion, conf, datos_y or extraer(intencion, texto), segunda)
 
 
 # ---------------- plan de acciones y respuestas ----------------
@@ -320,6 +359,16 @@ def plan(c: Comprension, usuario: str = "Robert") -> tuple[list[tuple[str, dict]
         "mostrar_imagenes": [("overlay_mostrar_imagenes", {"consulta": d["consulta"]} if d.get("consulta") else {})],
         "modo_manos": [("manos_activar", {})],
         "camara": [("camara", {"accion": d.get("accion", "encender")})],
+        "reproducir": [
+            (
+                "youtube_reproducir" if d.get("plataforma") == "youtube" else "spotify_reproducir",
+                {"consulta": d.get("consulta", "")},
+            )
+        ]
+        if d.get("consulta")
+        else [("multimedia", {"accion": "pausa"})],
+        "clic": [("ui_click", {"ventana": "activa", "objetivo": d.get("objetivo", "")})],
+        "buscar_en_app": [("app_buscar", {"app": d.get("app", ""), "consulta": d.get("consulta", "")})],
         "entrenar_gesto": [("gesto_entrenar", {"nombre": d.get("orden", ""), "orden": d.get("orden", "")})]
         if d.get("orden")
         else [],
@@ -417,6 +466,18 @@ def responder(intencion: str, resultados: list[tuple[str, object]], datos: dict)
         return "Silenciado." if r.get("silenciado") else f"Volumen al {r.get('volumen', '?')} %."
     if intencion == "brillo" and isinstance(r, dict):
         return f"Brillo al {r.get('brillo', '?')} %."
+    if intencion == "reproducir" and isinstance(r, dict):
+        if r.get("sonando"):
+            return f"Sonando: {r['sonando']}."
+        if r.get("video"):
+            return f"Te puse {datos.get('consulta')} en YouTube."
+        if r.get("aviso"):
+            return r["aviso"]
+        return "Listo." if r.get("ok") else (r.get("error") or "No pude ponerla.")
+    if intencion == "clic" and isinstance(r, dict) and r.get("ok"):
+        return f"Clic en {r.get('clic')}."
+    if intencion == "buscar_en_app" and isinstance(r, dict) and r.get("ok"):
+        return f"Busqué {datos.get('consulta')} en {r.get('app') or datos.get('app')}."
     if intencion == "musica":
         return {"pausa": "Listo.", "siguiente": "Siguiente.", "anterior": "Anterior."}.get(
             datos.get("accion"), "Listo."
