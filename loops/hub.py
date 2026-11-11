@@ -135,7 +135,7 @@ async def manejar_evento_overlay(ev: dict) -> None:
         )
         ev = {**ev, "monitor": monitor, "resultado": r}
     elif ev.get("tipo") == "overlay.abrir_archivo":
-        await asyncio.to_thread(escritorio.abrir, ev["ruta"])
+        await asyncio.to_thread(escritorio.abrir_seguro, ev["ruta"])  # nunca rutas prohibidas
     await difundir(ev)
 
 
@@ -183,6 +183,14 @@ def _imagen_valida(ruta: str) -> Path:
     if not (p.is_file() and ruta_permitida(p) and p.suffix.lower() in EXT_IMAGEN):
         raise HTTPException(404)
     return p
+
+
+@app.get("/api/explorar")
+async def explorar(ruta: str | None = None):
+    """Explorador holográfico: subcarpetas + imágenes de una carpeta (solo local, lo filtra la guardia)."""
+    from lay_core import archivos
+
+    return await asyncio.to_thread(archivos.explorar, ruta)
 
 
 @app.get("/archivo")

@@ -18,8 +18,9 @@ from lay_core import bus, proveedores, router
 from lay_core.config import CONFIG
 
 SISTEMA = """Eres {nombre}, el asistente personal de {usuario}.
-Hablas en español peruano, natural y breve: tus respuestas se leen en voz alta,
-así que máximo 2-3 frases salvo que pida detalle. Sin markdown, sin listas, sin emojis.
+Hablas en español peruano, natural y útil: tus respuestas se leen en voz alta,
+así que normalmente 2 a 4 frases con contenido real; si pide detalle o explicación, extiéndete.
+Sin markdown, sin listas, sin emojis. Nunca respondas solo "no puedo": ofrece la alternativa.
 Si vas a usar una herramienta que tarda, di antes una frase muy corta ("Dame un segundo.",
 "Abriendo Excel.") para que sepa que lo escuchaste. Números y fechas como se dicen.
 Controlas su PC con herramientas: monitores, ventanas, archivos, teclado, correo,
@@ -61,6 +62,7 @@ class Cerebro:
         self.confirmacion_pendiente = False
         self.ultimo_usuario = ""
         self.temas_previos: set[str] = set()
+        self.llamada_pendiente: tuple[str, dict] | None = None
         self._fijo = proveedor  # tests / inyección; si es None se crea según la configuración
         self._cache: dict[str, object] = {}
 
@@ -101,6 +103,7 @@ class Cerebro:
             texto = json.dumps({"error": f"{type(exc).__name__}: {exc}"[:400]})
         if "requiere_confirmacion" in texto:
             self.confirmacion_pendiente = True
+            self.llamada_pendiente = (nombre, {k: v for k, v in args.items() if k != "confirmar"})
         elif args.get("confirmar"):
             self.confirmacion_pendiente = False
         return texto[:12000]
@@ -122,9 +125,27 @@ class Cerebro:
             self.confirmacion_pendiente = False  # "no / cancela" anula la acción pendiente
         self.historial.append({"rol": "usuario", "texto": texto})
         self._recortar_historial()
+
+        # "Sí" a una acción pendiente: se ejecuta tal cual, sin pasar por ningún modelo
+        if (
+            getattr(self, "llamada_pendiente", None)
+            and self.confirmacion_pendiente
+            and AFIRMA.search(texto)
+            and not NIEGA.search(texto)
+        ):
+            return self._ejecutar_confirmada(al_texto)
+        if not self.confirmacion_pendiente:
+            self.llamada_pendiente = None
+
         snapshot = list(self.historial)
         perfil = router.elegir(texto)
-        orden = [self._fijo.nombre] if self._fijo is not None else proveedores.orden_de_respaldo(CONFIG.ia)
+        if self._fijo is not None:
+            orden = [self._fijo.nombre]
+        else:
+            orden = proveedores.orden_de_respaldo(CONFIG.ia)
+            if CONFIG.ia.get("hibrido", True) and orden[0] != "nucleo" and self._es_orden(texto):
+                orden = ["nucleo", *[o for o in orden if o != "nucleo"]]  # órdenes: ejecución garantizada
+        self._web_previa = None
         errores: list[str] = []
 
         for nombre in orden:
@@ -154,6 +175,60 @@ class Cerebro:
             return errores[0] + " Puedes cambiar la IA en Configuración."
         return "No pude completar eso. ¿Lo dividimos en pasos más simples?"
 
+    def _es_orden(self, texto: str) -> bool:
+        """¿Es una orden que el núcleo entiende con seguridad? (no charla ni pregunta abierta)"""
+        try:
+            from lay_core import nucleo
+
+            c = nucleo.entender(texto)
+            return c.intencion not in ("charla", "confirmar", "negar") and c.confianza >= nucleo.UMBRAL
+        except Exception:
+            return False
+
+    def _ejecutar_confirmada(self, al_texto) -> str:
+        nombre, args = self.llamada_pendiente
+        self.llamada_pendiente = None
+        r = self._ejecutar(nombre, {**args, "confirmar": True})
+        try:
+            ok = "error" not in json.loads(r)
+        except ValueError:
+            ok = True
+        texto = "Hecho." if ok else "No se pudo: " + r[:160]
+        self.historial.append({"rol": "asistente", "texto": texto, "llamadas": [], "crudo": None, "proveedor": "lay"})
+        if al_texto:
+            al_texto(texto)
+        return texto
+
+    def _contexto_web(self, texto: str) -> str:
+        """Preguntas de actualidad: busca ANTES de responder y le da los resultados a la IA,
+        así no contesta con datos viejos de su entrenamiento."""
+        if len(texto) < 8 or not re.search(
+            r"\b(qui[eé]n|qu[eé]|cu[aá]nt[oa]s?|cu[aá]ndo|d[oó]nde|cu[aá]l|actual|hoy|ahora|[uú]ltim\w*|"
+            r"precio|noticias?|resultado|20\d\d|presidente|d[oó]lar)\b",
+            texto,
+            re.I,
+        ):
+            return ""
+        if getattr(self, "_web_previa", None) is not None:
+            return self._web_previa
+        try:
+            from lay_core import informacion
+
+            r = informacion.buscar_web(texto, 4)
+            res = r.get("resultados") or []
+            self._web_previa = (
+                (
+                    "\nResultados de búsqueda de HOY para esta pregunta (úsalos y cita la fuente; "
+                    "no uses datos de tu memoria si contradicen esto):\n"
+                    + "\n".join(f"- {x['titulo']} ({x['url']}): {x['resumen']}" for x in res)
+                )
+                if res
+                else ""
+            )
+        except Exception:
+            self._web_previa = ""
+        return self._web_previa
+
     def _bucle(self, prov, perfil: router.Perfil, texto: str, al_texto) -> str:
         sistema = SISTEMA.format(
             nombre=CONFIG.nombre, usuario=getattr(CONFIG, "usuario", "Robert"), ahora=time.strftime("%A %d/%m/%Y %H:%M")
@@ -166,6 +241,8 @@ class Cerebro:
                 sistema += "\n" + recuerdos
         except Exception:
             pass
+        if prov.nombre not in ("nucleo", "falso"):
+            sistema += self._contexto_web(texto)
         tools = self._herramientas_para(texto, prov.nombre)
         for _ in range(perfil.max_iter):
             t = prov.turno(sistema, self.historial, tools, perfil.nivel, perfil.max_tokens, al_texto)

@@ -20,3 +20,18 @@ def test_ignora_carpetas_basura(tmp_path, monkeypatch):
     (tmp_path / "node_modules").mkdir()
     (tmp_path / "node_modules" / "informe.pdf").write_text("x")
     assert archivos.buscar("informe", carpeta=str(tmp_path)) == []
+
+
+def test_explorar_carpeta_para_el_holograma(tmp_path):
+    from lay_core import archivos
+
+    (tmp_path / "Obra Lima").mkdir()
+    (tmp_path / ".oculta").mkdir()
+    (tmp_path / "plano.png").write_bytes(b"x")
+    (tmp_path / "foto.JPG").write_bytes(b"x")
+    (tmp_path / "notas.txt").write_text("x")
+    r = archivos.explorar(str(tmp_path))
+    assert [c["nombre"] for c in r["carpetas"]] == ["Obra Lima"]
+    assert sorted(p.split("/")[-1] for p in r["imagenes"]) == ["foto.JPG", "plano.png"]
+    assert r["otros"] == 1 and r["padre"]
+    assert "error" in archivos.explorar(str(tmp_path / "no-existe"))

@@ -182,6 +182,13 @@ def registrar(app: FastAPI, difundir) -> None:
         except Exception as exc:
             return {"ok": False, "error": f"{type(exc).__name__}: {exc}"[:200]}
 
+    @app.post("/api/diagnostico")
+    async def diagnostico_api(body: dict | None = None):
+        """Corre el diagnóstico completo en segundo plano; el resultado llega como hud.panel."""
+        from lay_mcp import server
+
+        return server.diagnostico_ejecutar()
+
     @app.get("/api/ia/estado")
     async def ia_estado():
         from lay_core import ia_local

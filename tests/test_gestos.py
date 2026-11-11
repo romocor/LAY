@@ -156,3 +156,23 @@ def test_swipe_hacia_arriba_lanza_al_monitor_de_arriba():
         c.procesar(resultado(("Right", mano(cy=0.8 - i * 0.09))), i / 30)
     lanzar = [e for e in eventos if e.get("gesto") == "lanzar"]
     assert lanzar and lanzar[0]["direccion"] == "arriba"
+
+
+def test_dos_palmas_escanean_tipo_tony_stark_sin_cambiar_modo():
+    frames = [(t / 10, resultado(("Left", mano(0.3)), ("Right", mano(0.7)))) for t in range(0, 25)]
+    g, c = correr(frames)
+    assert "escaneo_progreso" in g and g.count("escaneo") == 1
+    assert "modo" not in g and c.modo_mouse is False
+
+
+def test_escaneo_se_cancela_si_bajas_una_mano():
+    frames = [(t / 10, resultado(("Left", mano(0.3)), ("Right", mano(0.7)))) for t in range(0, 6)]
+    frames += [(0.7, resultado(("Left", mano(0.3))))]
+    g, _ = correr(frames)
+    assert "escaneo_cancelado" in g and "escaneo" not in g
+
+
+def test_aplauso_no_es_escaneo():
+    frames = [(t / 10, resultado(("Left", mano(0.48)), ("Right", mano(0.52)))) for t in range(0, 20)]
+    g, _ = correr(frames)
+    assert "escaneo" not in g

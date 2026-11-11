@@ -35,6 +35,7 @@ if os.path.isdir(_vosk):
 else:
     print("[lay.spec] AVISO: sin modelo Vosk empaquetado; se descargará en el primer arranque")
 
+datas += [(os.path.join(RAIZ, "lay_core", "nucleo", "modelo_nucleo.npz"), os.path.join("lay_core", "nucleo"))]  # IA propia
 datas += [(os.path.join(RAIZ, "overlay"), "overlay"), (os.path.join(RAIZ, "config"), "config"),
           (os.path.join(RAIZ, ".env.example"), "."), (os.path.join(RAIZ, "pyproject.toml"), "."),
           (os.path.join(SPECPATH, "lay.ico"), ".")]  # noqa: F821

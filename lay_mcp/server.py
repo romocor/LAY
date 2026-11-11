@@ -102,6 +102,16 @@ def archivos_abrir_por_nombre(consulta: str, extension: str | None = None) -> di
 
 
 @mcp.tool()
+def carpeta_abrir(nombre: str) -> dict:
+    """Abre una carpeta en el Explorador por su nombre: descargas, documentos, escritorio, imágenes,
+    o cualquier carpeta de la PC ("obras", "planos de chancay")."""
+    p = archivos.resolver_carpeta(nombre)
+    if p is None:
+        return {"error": f"No encontré una carpeta llamada '{nombre}'"}
+    return {**escritorio.abrir_seguro(str(p)), "carpeta": p.name}
+
+
+@mcp.tool()
 def abrir(ruta_o_url: str) -> dict:
     """Abre un archivo, carpeta o URL con la app predeterminada."""
     return escritorio.abrir_seguro(ruta_o_url)
@@ -126,6 +136,15 @@ def ventana_mover(titulo: str, monitor: int = 1, posicion: str = "completa") -> 
     maximizada, izquierda, derecha, arriba, abajo, arriba-izquierda, arriba-derecha,
     abajo-izquierda, abajo-derecha, centro."""
     return escritorio.mover_ventana(titulo, monitor, posicion)
+
+
+@mcp.tool()
+def ventana_mover_a(
+    titulo: str, monitor: int | None = None, direccion: str | None = None, posicion: str = "maximizada"
+) -> dict:
+    """Mueve una ventana a un monitor por número o por dirección desde la laptop: arriba, derecha,
+    izquierda, abajo ("pon Chrome en el monitor de arriba")."""
+    return escritorio.mover_ventana_a(titulo, monitor, direccion, posicion)
 
 
 @mcp.tool()
@@ -190,6 +209,43 @@ def overlay_mostrar_imagenes(
 def overlay_colocar(indice: int, x: float, y: float, escala: float = 1.0) -> dict:
     """Coloca la tarjeta N del overlay en (x, y) normalizados 0-1 con una escala."""
     return bus.publicar("overlay.colocar", indice=indice, x=x, y=y, escala=escala)
+
+
+@mcp.tool()
+def manos_activar(carpeta: str | None = None) -> dict:
+    """Activa el modo manos (tipo Tony Stark): escanea las palmas y abre el explorador holográfico
+    de carpetas e imágenes que se maneja con gestos. carpeta: dónde empezar (por defecto Imágenes)."""
+    inicio = archivos.resolver_carpeta(carpeta) if carpeta else None
+    return bus.publicar("manos.activar", carpeta=str(inicio) if inicio else None)
+
+
+@mcp.tool()
+def diagnostico_ejecutar() -> dict:
+    """Prueba todas las funciones de LAY (manos, cámara, voz, navegador, apps, IA) y muestra qué falla."""
+    import threading
+
+    from lay_core import diagnostico
+
+    def correr():
+        res = diagnostico.ejecutar()
+        bus.publicar(
+            "hud.panel",
+            titulo="Diagnóstico de LAY",
+            segundos=90,
+            ok=sum(1 for r in res if r["ok"]),
+            total=len(res),
+            items=[
+                {"titulo": r["nombre"], "detalle": r["detalle"][:120], "etiqueta": "ok" if r["ok"] else "falla"}
+                for r in res
+            ][:8]
+            if all(r["ok"] for r in res)
+            else [
+                {"titulo": r["nombre"], "detalle": r["detalle"][:120], "etiqueta": "falla"} for r in res if not r["ok"]
+            ][:8],
+        )
+
+    threading.Thread(target=correr, daemon=True).start()
+    return {"ok": True, "nota": "Diagnóstico en curso; el resultado sale en pantalla en ~1 minuto."}
 
 
 @mcp.tool()

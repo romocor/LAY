@@ -122,8 +122,8 @@ def test_respaldo_nunca_usa_pago_sin_permiso(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-x")
     monkeypatch.setenv("GEMINI_API_KEY", "AIza")
     monkeypatch.delenv("GROQ_API_KEY", raising=False)
-    assert pv.orden_de_respaldo({"proveedor": "ollama"}) == ["ollama", "gemini"]
-    assert pv.orden_de_respaldo({"proveedor": "ollama", "respaldo_pago": True})[-1] == "anthropic"
+    assert pv.orden_de_respaldo({"proveedor": "ollama"}) == ["ollama", "gemini", "nucleo"]  # núcleo: último recurso
+    assert "anthropic" in pv.orden_de_respaldo({"proveedor": "ollama", "respaldo_pago": True})
 
 
 @pytest.mark.parametrize(

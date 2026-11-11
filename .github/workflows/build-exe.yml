@@ -35,11 +35,12 @@ jobs:
         shell: pwsh
         env:
           LAY_DATA: ${{ runner.temp }}\lay-diag
+          PYTHONIOENCODING: utf-8
         run: |
           New-Item -ItemType Directory -Force $env:LAY_DATA | Out-Null
           & .\dist\LAY\LAY-cli.exe --rol diagnostico --ci
           $code = $LASTEXITCODE
-          Get-Content "$env:LAY_DATA\diagnostico.txt"
+          if (Test-Path "$env:LAY_DATA\diagnostico.txt") { Get-Content "$env:LAY_DATA\diagnostico.txt" }
           if (Test-Path "$env:LAY_DATA\errores.log") { Get-Content "$env:LAY_DATA\errores.log" -Tail 80 }
           exit $code
       - uses: actions/upload-artifact@v4

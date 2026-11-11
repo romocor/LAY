@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import fnmatch
 import os
+import re
 import shutil
 import subprocess
 import time
@@ -106,3 +107,77 @@ def imagenes(carpeta: str | None = None, limite: int = 24) -> list[str]:
     imgs = [p for p in base.rglob("*") if p.suffix.lower() in EXT_IMAGEN]
     imgs.sort(key=lambda p: p.stat().st_mtime, reverse=True)
     return [str(p) for p in imgs[:limite]]
+
+
+def explorar(ruta: str | None = None, max_carpetas: int = 40, max_imagenes: int = 48) -> dict:
+    """Contenido de una carpeta para el explorador holográfico: subcarpetas e imágenes (sin ocultos ni rutas prohibidas)."""
+    from lay_core.seguridad import ruta_permitida
+
+    base = Path(os.path.expanduser(ruta)) if ruta else (resolver_carpeta("imagenes") or Path.home())
+    if not ruta and not base.is_dir():
+        base = Path.home()
+    base = base.resolve()
+    if not base.is_dir():
+        return {"error": f"No existe la carpeta {base}"}
+    if not ruta_permitida(base):
+        return {"error": "Esa carpeta está protegida."}
+    carpetas, imgs, otros = [], [], 0
+    try:
+        hijos = sorted(base.iterdir(), key=lambda x: x.name.lower())
+    except OSError as e:
+        return {"error": f"No pude abrir {base.name}: {e.strerror or e}"}
+    for h in hijos:
+        if h.name.startswith((".", "$", "~")) or h.name in ("desktop.ini", "Thumbs.db"):
+            continue
+        try:
+            if h.is_dir():
+                if ruta_permitida(h) and len(carpetas) < max_carpetas:
+                    carpetas.append({"nombre": h.name, "ruta": str(h)})
+            elif h.suffix.lower() in EXT_IMAGEN:
+                imgs.append(h)
+            else:
+                otros += 1
+        except OSError:
+            continue
+    imgs.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+    padre = base.parent if base.parent != base and ruta_permitida(base.parent) else None
+    return {
+        "ruta": str(base),
+        "nombre": base.name or str(base),
+        "padre": str(padre) if padre else None,
+        "carpetas": carpetas,
+        "imagenes": [str(x) for x in imgs[:max_imagenes]],
+        "mas_imagenes": max(0, len(imgs) - max_imagenes),
+        "otros": otros,
+    }
+
+
+CARPETAS_CONOCIDAS = {
+    "descargas": "~/Downloads",
+    "documentos": "~/Documents",
+    "escritorio": "~/Desktop",
+    "imagenes": "~/Pictures",
+    "fotos": "~/Pictures",
+    "musica": "~/Music",
+    "videos": "~/Videos",
+    "capturas": "~/Pictures/Screenshots",
+    "onedrive": "~/OneDrive",
+}
+
+
+def resolver_carpeta(nombre: str) -> Path | None:
+    """'descargas' -> ~/Downloads; si no es conocida, busca una carpeta con ese nombre (la más reciente)."""
+    import unicodedata
+
+    clave = unicodedata.normalize("NFKD", nombre.lower()).encode("ascii", "ignore").decode().strip()
+    clave = re.sub(r"^(la |las |los |el |mis? |carpeta (de )?)", "", clave).strip()
+    for k, ruta in CARPETAS_CONOCIDAS.items():
+        if clave == k or clave.startswith(k):
+            p = Path(os.path.expanduser(ruta))
+            onedrive = Path(os.path.expanduser("~/OneDrive")) / p.name  # Windows con OneDrive mueve estas carpetas
+            return p if p.exists() else (onedrive if onedrive.exists() else p)
+    p = Path(os.path.expanduser(nombre))
+    if p.is_dir():
+        return p
+    res = buscar(clave, solo_carpetas=True, limite=5)
+    return Path(res[0]["ruta"]) if res else None

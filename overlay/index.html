@@ -97,6 +97,31 @@ body.opus .r2{border-top-color:var(--violet);border-bottom-color:#d6c2ff}
 .cerrar{position:absolute;top:14px;right:18px;background:none;border:none;color:var(--ice);font-size:22px;cursor:pointer}
 .cfg ol{margin:6px 0 0;padding-left:18px}.cfg a{color:var(--cyan)}
 #qr{margin-top:12px;background:#fff;padding:8px;width:200px;display:none}
+/* explorador holográfico + escaneo de manos */
+.card{pointer-events:auto;cursor:pointer}
+.card.carpeta,.card.atras,.card.cerrar{display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 40%,rgba(38,216,247,.22),#031722 70%)}
+.card .ico{width:76px;height:54px;position:relative;border:2px solid var(--cyan);border-radius:4px 8px 8px 8px;box-shadow:0 0 18px rgba(38,216,247,.6),inset 0 0 14px rgba(38,216,247,.35);margin-bottom:22px}
+.card .ico:before{content:"";position:absolute;left:-2px;top:-12px;width:32px;height:10px;border:2px solid var(--cyan);border-bottom:0;border-radius:4px 8px 0 0}
+.card .ico:after{content:"";position:absolute;inset:8px;background:repeating-linear-gradient(0deg,rgba(101,244,255,.25) 0 1px,transparent 1px 6px)}
+.card.atras .ico,.card.cerrar .ico{display:none}
+.card.atras .big,.card.cerrar .big{font:34px Consolas,monospace;color:var(--cyan);text-shadow:0 0 14px var(--cyan);margin-bottom:18px}
+.card.entrando{animation:entrar .45s cubic-bezier(.2,.8,.2,1) both}
+@keyframes entrar{from{opacity:0;filter:blur(6px) brightness(2)}to{opacity:1;filter:none}}
+#ruta{position:fixed;top:64px;left:50%;transform:translateX(-50%);font:11px Consolas,monospace;letter-spacing:3px;color:var(--cyan);text-shadow:0 0 10px var(--cyan);z-index:6;display:none;max-width:70vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.explorando #ruta{display:block}
+body.explorando #ayuda,body.escaneando #ayuda{opacity:0;pointer-events:none}
+body.explorando .core{opacity:.25;transition:opacity .5s}
+#escaneo{position:fixed;inset:0;z-index:12;pointer-events:none;opacity:0;transition:opacity .25s}
+#escaneo.on{opacity:1}
+#escaneo:before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(101,244,255,.06) 0 1px,transparent 1px 4px)}
+#escaneo .barra{position:absolute;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,#e2ffff,transparent);box-shadow:0 0 24px #65f4ff;animation:barrer 1.1s linear infinite}
+@keyframes barrer{from{top:8%}to{top:92%}}
+#escaneo .anillo{position:absolute;width:190px;height:190px;margin:-95px 0 0 -95px;border-radius:50%;border:2px dashed rgba(101,244,255,.8);box-shadow:0 0 30px rgba(38,216,247,.5);animation:girar 2.4s linear infinite;transition:left .15s,top .15s}
+@keyframes girar{to{transform:rotate(360deg)}}
+#escaneo .txt{position:absolute;top:20%;left:50%;transform:translateX(-50%);text-align:center;font:12px Consolas,monospace;letter-spacing:5px;color:#e2ffff;text-shadow:0 0 12px var(--cyan)}
+#escaneo .pct{font-size:42px;letter-spacing:4px;margin-top:8px}
+#escaneo.ok .txt{color:#9dffb8;text-shadow:0 0 14px #3dff8a}
+#escaneo.ok .anillo{border-style:solid;border-color:#9dffb8}
 </style>
 </head>
 <body>
@@ -113,6 +138,9 @@ body.opus .r2{border-top-color:var(--violet);border-bottom-color:#d6c2ff}
 <div class="cursor" id="cLeft"></div><div class="cursor" id="cRight"></div>
 <div id="dialogo"><div class="yo" id="yo"></div><div class="lay" id="lay">Di "LAY" para hablarme.</div></div>
 <div id="toast"></div>
+<div id="ruta"></div>
+<div id="escaneo"><div class="barra"></div><div class="anillo" id="anL"></div><div class="anillo" id="anR"></div>
+  <div class="txt"><div id="escTxt">ESCANEANDO BIOMETRÍA</div><div class="pct" id="escPct">0 %</div></div></div>
 
 <button id="engranaje" title="Configuración (C)">⚙ CONFIGURACIÓN</button>
 <div id="config"><div class="cfg" style="position:relative">
@@ -130,6 +158,8 @@ body.opus .r2{border-top-color:var(--violet);border-bottom-color:#d6c2ff}
   <div class="tarjeta" id="localBox"><b style="color:#e9ffff">IA local (Ollama)</b><div id="localInfo">Revisando tu PC…</div>
    <div class="barra" id="localBarra" style="display:none"><i></i></div><div id="localProg" class="res"></div>
    <button class="btn" id="instalarIA" disabled>Instalar IA local</button></div>
+  <label class="interruptor" style="margin-top:16px"><input type="checkbox" id="hibrido"> Modo híbrido: las órdenes (abrir, buscar, volumen, carpetas…) las ejecuta LAY Núcleo al instante y la charla la responde la IA elegida</label>
+  <div style="margin-top:10px"><button class="btn sec" id="diagnostico">🩺 Diagnóstico: probar manos, cámara, voz, navegador y Windows</button><div class="res" id="resDiag"></div></div>
   <label class="interruptor" style="margin-top:16px"><input type="checkbox" id="respaldoPago"> Si la IA gratis falla, usar Claude (de pago) como respaldo</label>
  </section>
  <section data-sec="universidad" style="flex:1"><h3>Universidad · Blackboard</h3><p class="sub">LAY lee tus entregas y exámenes desde el calendario de Blackboard. No guarda tu contraseña.</p>
@@ -168,7 +198,7 @@ body.opus .r2{border-top-color:var(--violet);border-bottom-color:#d6c2ff}
  </section>
  </div></div></div>
 <aside id="panel"><h3 id="panelTitulo"></h3><div id="panelItems"></div></aside>
-<div id="ayuda">PINCH tarjeta = agarrar · TAP = abrir/cerrar · ARRASTRAR = mover · QUIETO 1s = rotar 3D · DOS MANOS = escalar · CLAP = anillo central · SWIPE = otro monitor · PALMA 1,5s = modo mouse · DOS DEDOS = scroll · PUÑO = callar a LAY · PUÑO 2s = pausa · ESC callar · C configuración · R reordenar · D ayuda</div>
+<div id="ayuda">DOS PALMAS 1s = escaneo y explorador de carpetas · TAP carpeta = entrar · PINCH tarjeta = agarrar · TAP = abrir/cerrar · ARRASTRAR = mover · QUIETO 1s = rotar 3D · DOS MANOS = escalar · CLAP = anillo central · SWIPE = otro monitor · PALMA 1,5s = modo mouse · E explorador · DOS DEDOS = scroll · PUÑO = callar a LAY · PUÑO 2s = pausa · ESC callar · C configuración · R reordenar · D ayuda</div>
 
 <script>
 const $=id=>document.getElementById(id);
@@ -180,16 +210,19 @@ function resize(){W=innerWidth;H=innerHeight;cv.width=W;cv.height=H}resize();add
 const cards=[];   // {el,ruta,x,y,s,ry,abierta}
 let agarrada=null,abierta=null,rotando=null,ultimaActiva=null;
 
-function cargar(rutas){
-  mesa.innerHTML='';cards.length=0;
-  rutas.slice(0,24).forEach((ruta,i)=>{
-    const el=document.createElement('div');el.className='card';
-    el.dataset.nombre=ruta.split(/[\\/]/).pop();
-    el.innerHTML=`<img loading="lazy" src="/miniatura?ruta=${encodeURIComponent(ruta)}&w=480">`;
+function cargar(rutas){cargarItems(rutas.map(r=>({tipo:'imagen',ruta:r})));if(!explorador.activo)toast(`${cards.length} IMÁGENES CARGADAS`)}
+function cargarItems(items){
+  mesa.innerHTML='';cards.length=0;abierta=null;agarrada=null;
+  items.slice(0,48).forEach((it,i)=>{
+    const el=document.createElement('div');el.className='card '+it.tipo+' entrando';el.style.animationDelay=(i*18)+'ms';
+    const nombre=it.nombre||it.ruta.split(/[\\/]/).pop();el.dataset.nombre=nombre.toUpperCase();
+    if(it.tipo==='imagen')el.innerHTML=`<img loading="lazy" src="/miniatura?ruta=${encodeURIComponent(it.ruta)}&w=480">`;
+    else if(it.tipo==='carpeta')el.innerHTML='<div class="ico"></div>';
+    else el.innerHTML=`<div class="big">${it.tipo==='atras'?'◀':'✕'}</div>`;
     mesa.appendChild(el);
-    cards.push({el,ruta,x:0,y:0,s:1,ry:0,abierta:false});
+    const c={el,ruta:it.ruta,tipo:it.tipo,x:0,y:0,s:1,ry:0,abierta:false};el._card=c;cards.push(c);
   });
-  grilla();$('nCards').textContent=cards.length;toast(`${cards.length} IMÁGENES CARGADAS`);
+  grilla();$('nCards').textContent=cards.length;
 }
 function celdasLibres(cols,filas,escala){
   // Celdas de una grilla que NO caen sobre el núcleo central (radio del anillo + margen)
@@ -205,7 +238,7 @@ function grilla(){
   const n=cards.length;let cols=Math.max(4,Math.ceil(Math.sqrt(n*1.8))),filas=3;
   const esc=c=>Math.min(.8,W/c/220*.75);  // la tarjeta nunca ocupa más del 75 % de su columna
   let libres=celdasLibres(cols,filas,esc(cols));
-  while(libres.length<n&&cols<12){cols+=1;filas=Math.min(filas+1,6);libres=celdasLibres(cols,filas,esc(cols))}
+  while(libres.length<n&&cols<14){cols+=1;filas=Math.min(filas+1,6);libres=celdasLibres(cols,filas,esc(cols))}
   const s=esc(cols);
   cards.forEach((c,i)=>{[c.x,c.y]=libres[i];c.s=s;c.ry=0;c.abierta=false;pintar(c)});
 }
@@ -224,10 +257,53 @@ function cardEn(x,y){
     if(Math.abs(x*W-c.x*W)<hw&&Math.abs(y*H-c.y*H)<hh)return c}return null;
 }
 function toggleAbrir(c){
+  if(c.tipo&&c.tipo!=='imagen'){activar(c);return}
   if(c.abierta){c.abierta=false;c.s=c._s||.8;c.x=c._x;c.y=c._y;abierta=null}
   else{if(abierta)toggleAbrir(abierta);c._s=c.s;c._x=c.x;c._y=c.y;c.abierta=true;c.s=3;c.x=.5;c.y=.5;abierta=c;
     const img=c.el.querySelector('img');if(!img.dataset.hd){img.dataset.hd=1;img.src=`/miniatura?ruta=${encodeURIComponent(c.ruta)}&w=1600`}}
   pintar(c);
+}
+
+/* ---------- explorador holográfico ---------- */
+const explorador={activo:false,ruta:null};let carpetaPendiente=null,ultimaMano=0,esperaEscaneo=null;
+async function explorar(ruta){
+  let r;try{r=await (await fetch('/api/explorar'+(ruta?'?ruta='+encodeURIComponent(ruta):''))).json()}catch(e){toast('NO PUDE LEER LA CARPETA');return}
+  if(r.error){toast(r.error.toUpperCase());return}
+  explorador.activo=true;explorador.ruta=r.ruta;document.body.classList.add('explorando');
+  const items=[];
+  if(r.padre)items.push({tipo:'atras',ruta:r.padre,nombre:'ATRÁS · '+r.padre.split(/[\\/]/).filter(Boolean).pop()});
+  r.carpetas.slice(0,20).forEach(c=>items.push({tipo:'carpeta',ruta:c.ruta,nombre:c.nombre}));
+  r.imagenes.forEach(x=>items.push({tipo:'imagen',ruta:x}));
+  items.push({tipo:'cerrar',ruta:'',nombre:'CERRAR'});
+  cargarItems(items);
+  $('ruta').textContent='◈ '+r.ruta.toUpperCase();
+  toast(`${r.nombre.toUpperCase()} · ${r.carpetas.length} CARPETAS · ${r.imagenes.length+r.mas_imagenes} IMÁGENES`);
+}
+function cerrarExplorador(){explorador.activo=false;document.body.classList.remove('explorando');mesa.innerHTML='';cards.length=0;abierta=null;$('nCards').textContent=0;toast('EXPLORADOR CERRADO')}
+function activar(c){
+  if(c.tipo==='carpeta'||c.tipo==='atras')explorar(c.ruta);
+  else if(c.tipo==='cerrar')cerrarExplorador();
+  else toggleAbrir(c);
+}
+function usuario(){try{return String(CFG.config.usuario||'ROBERT').toUpperCase()}catch(e){return 'ROBERT'}}
+function escaneo(ev){
+  const e=$('escaneo');
+  if(ev.gesto==='escaneo_progreso'){
+    clearTimeout(esperaEscaneo);document.body.classList.add('escaneando');e.classList.remove('ok');e.classList.add('on');$('escTxt').textContent='ESCANEANDO BIOMETRÍA';$('escPct').textContent=ev.pct+' %';
+    (ev.manos||[]).forEach(([x,y],i)=>{const a=$(i?'anR':'anL');a.style.left=x*W+'px';a.style.top=y*H+'px'});
+  }else if(ev.gesto==='escaneo_cancelado'){e.classList.remove('on');document.body.classList.remove('escaneando')}
+  else if(ev.gesto==='escaneo'){
+    e.classList.add('on','ok');$('escTxt').textContent='IDENTIDAD CONFIRMADA · '+usuario();$('escPct').textContent='100 %';
+    setTimeout(()=>{e.classList.remove('on','ok');document.body.classList.remove('escaneando')},1100);
+    if(explorador.activo&&!carpetaPendiente)cerrarExplorador();else{explorar(carpetaPendiente);carpetaPendiente=null}
+  }
+}
+function activarManos(ev){
+  // LAY pidió el modo manos: espera el escaneo; si la cámara no manda manos, abre igual (se usa con el mouse)
+  carpetaPendiente=ev.carpeta||null;const e=$('escaneo');e.classList.remove('ok');e.classList.add('on');
+  $('escTxt').textContent='MUESTRA LAS DOS PALMAS A LA CÁMARA';$('escPct').textContent='◈';
+  clearTimeout(esperaEscaneo);esperaEscaneo=setTimeout(()=>{e.classList.remove('on');
+    if(Date.now()-ultimaMano>2500){toast('NO VEO TUS MANOS: USA EL MOUSE O REVISA LA CÁMARA');explorar(carpetaPendiente);carpetaPendiente=null}},6000);
 }
 
 /* ---------- gestos ---------- */
@@ -241,11 +317,12 @@ function gesto(ev){
       if(rotando){rotando.ry=rotBase+ev.dx*540;pintar(rotando)}break;
     case 'rotar3d':if(agarrada){rotando=agarrada;rotBase=agarrada.ry;toast('ROTACIÓN 3D')}break;
     case 'pinch_fin':soltar();break;
-    case 'tap':{soltar();const c=cardEn(x,y)||abierta;if(c){toggleAbrir(c);ultimaActiva=c}break}
-    case 'doble_tap':{const c=cardEn(x,y);if(c)enviar({tipo:'overlay.abrir_archivo',ruta:c.ruta});break}
+    case 'tap':{soltar();const c=cardEn(x,y)||abierta;if(c){activar(c);ultimaActiva=c}break}
+    case 'escaneo_progreso':case 'escaneo':case 'escaneo_cancelado':escaneo(ev);break;
+    case 'doble_tap':{const c=cardEn(x,y);if(c&&c.ruta)enviar({tipo:'overlay.abrir_archivo',ruta:c.ruta});break}
     case 'escalar':{const c=agarrada||abierta||cardEn(x,y)||ultimaActiva;if(c){c.s=Math.min(Math.max(c.s*ev.factor,.3),5);pintar(c)}break}
     case 'clap':anillo();break;
-    case 'lanzar':{const c=cardEn(x,y)||abierta||ultimaActiva;if(c){
+    case 'lanzar':{const c=cardEn(x,y)||abierta||ultimaActiva;if(c&&c.ruta){
       // El hub decide el monitor vecino real (izq/der del monitor donde está el cursor)
       c.el.classList.add('lanzada');enviar({tipo:'overlay.fling',ruta:c.ruta,direccion:ev.direccion});
       toast({derecha:'→ MONITOR DERECHO',izquierda:'← MONITOR IZQUIERDO',arriba:'↑ MONITOR DE ARRIBA',abajo:'↓ MONITOR DE ABAJO'}[ev.direccion]||'→ OTRO MONITOR');setTimeout(()=>c.el.classList.remove('lanzada'),900)}break}
@@ -261,6 +338,7 @@ function soltar(){if(agarrada)agarrada.el.classList.remove('agarrada');agarrada=
 /* ---------- dibujo de manos ---------- */
 const HUESOS=[[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
 function dibujarManos(manos){
+  if(Object.keys(manos).length)ultimaMano=Date.now();
   ctx.clearRect(0,0,W,H);const lados=Object.keys(manos);$('nManos').textContent=lados.length;
   ['Left','Right'].forEach(l=>{$('c'+l).style.display=lados.includes(l)?'block':'none'});
   ctx.lineWidth=1.5;ctx.strokeStyle='rgba(101,244,255,.45)';ctx.fillStyle='#c9ffff';ctx.shadowColor='#38dfff';ctx.shadowBlur=8;
@@ -301,6 +379,7 @@ function conectar(){
   ws.onmessage=m=>{const ev=JSON.parse(m.data);
     switch(ev.tipo){
       case 'manos':dibujarManos(ev.manos);break;
+      case 'manos.activar':activarManos(ev);break;
       case 'cursor':cursor(ev);break;
       case 'gesto':gesto(ev);break;
       case 'overlay.cargar':cargar(ev.rutas||[]);break;
@@ -314,7 +393,7 @@ function conectar(){
       case 'hud.camara':if(ev.pausada){$('fps').textContent='EN PAUSA';break}if(!ev.ok){$('fps').textContent='SIN SEÑAL';$('fps').style.color='var(--warn)';toast('CÁMARA DESCONECTADA: reintentando')}break;
       case 'hud.latencia':$('latencia').textContent=(ev.ms/1000).toFixed(1).replace('.',',')+' s';
         $('latencia').style.color=ev.ms<1500?'':'var(--warn)';break;
-      case 'hud.panel':mostrarPanel(ev);break;
+      case 'hud.panel':mostrarPanel(ev);if(ev.total)res('resDiag',`${ev.ok} de ${ev.total} pruebas OK`+(ev.ok<ev.total?' · revisa el panel':''),ev.ok===ev.total);break;
       case 'hud.config':abrirConfig(ev.seccion);break;
       case 'ia.progreso':progresoIA(ev);break;
       case 'ia.lista':progresoIA({pct:100,texto:'✓ IA local lista'});estadoIA();toast('IA LOCAL LISTA');break;
@@ -330,7 +409,7 @@ let CFG=null;
 const AYUDA_CLAVE={gemini:['Clave de Gemini','Gratis y sin tarjeta en <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com</a> → Get API key.','GEMINI_API_KEY'],
   groq:['Clave de Groq','Gratis y sin tarjeta en <a href="https://console.groq.com/keys" target="_blank">console.groq.com</a> → API Keys.','GROQ_API_KEY'],
   anthropic:['Clave de Claude (de pago)','En console.anthropic.com → API Keys. Cobra por uso.','ANTHROPIC_API_KEY']};
-const DESC={ollama:'Gratis · privada · sin internet',gemini:'Gratis con clave · muy capaz',groq:'Gratis con clave · muy rápida',anthropic:'De pago · la más capaz'};
+const DESC={nucleo:'IA propia de LAY · hecha desde cero · instantánea · sin internet ni instalación · entiende órdenes',ollama:'Gratis · privada · sin internet',gemini:'Gratis con clave · muy capaz',groq:'Gratis con clave · muy rápida',anthropic:'De pago · la más capaz'};
 async function api(ruta,cuerpo){const r=await fetch(ruta,cuerpo===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cuerpo)});
   const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.detail||j.error||('HTTP '+r.status));return j}
 function res(id,txt,ok){const e=$(id);e.textContent=txt;e.className='res '+(ok===true?'ok':ok===false?'mal':'')}
@@ -340,7 +419,7 @@ async function abrirConfig(tab){
   const c=CFG.config;$('cfgVersion').textContent='LAY v'+CFG.version;
   $('provs').innerHTML=Object.entries(CFG.proveedores).map(([k,n])=>`<label><input type="radio" name="prov" value="${k}" ${c.ia.proveedor===k?'checked':''}><b>${esc(n)}</b><span>${DESC[k]||''}${CFG.secretos[(AYUDA_CLAVE[k]||[])[2]]?' · clave ✓':''}</span></label>`).join('');
   document.querySelectorAll('input[name=prov]').forEach(r=>r.onchange=pintarClave);pintarClave();
-  $('respaldoPago').checked=!!c.ia.respaldo_pago;
+  $('respaldoPago').checked=!!c.ia.respaldo_pago;$('hibrido').checked=c.ia.hibrido!==false;
   $('bbActual').textContent=CFG.blackboard_url?'· actual: '+CFG.blackboard_url:'· sin configurar';
   res('resGmail',CFG.gmail_configurado?'Credenciales de Gmail cargadas ✓':'',true);
   $('outlookId').placeholder=CFG.secretos.OUTLOOK_CLIENT_ID?'(configurado — escribe para cambiarlo)':'00000000-0000-0000-0000-000000000000';
@@ -358,6 +437,8 @@ function provElegido(){return (document.querySelector('input[name=prov]:checked'
 function pintarClave(){const p=provElegido(),a=AYUDA_CLAVE[p];$('claveBox').style.display=a?'block':'none';$('localBox').style.display=p==='ollama'?'block':'none';
   if(a){$('claveEt').textContent=a[0]+(CFG.secretos[a[2]]?' (ya configurada — escribe para cambiarla)':'');$('claveAyuda').innerHTML=a[1];$('clave').value=''}}
 async function guardar(config,secretos,idRes){try{CFG=await api('/api/config',{config,secretos});res(idRes,'Guardado ✓',true);return true}catch(e){res(idRes,e.message,false)}}
+$('diagnostico').onclick=async()=>{res('resDiag','Probando… (hasta 1 minuto). Los resultados salen en el panel derecho.');$('diagnostico').disabled=true;
+  try{await api('/api/diagnostico',{});}catch(e){res('resDiag',e.message,false)}setTimeout(()=>$('diagnostico').disabled=false,20000)};
 async function estadoIA(){
   try{const e=await api('/api/ia/estado'),h=e.hardware,r=e.recomendacion;
     $('localInfo').innerHTML=`Tu PC: <b>${h.ram_gb} GB</b> de RAM${h.vram_gb?` · GPU <b>${h.vram_gb} GB</b>`:''} · ${h.disco_libre_gb} GB libres<br>`+
@@ -375,7 +456,7 @@ $('config').onclick=e=>{if(e.target.id==='config')cerrarConfig()};
 document.querySelectorAll('.cfg nav button[data-tab]').forEach(b=>b.onclick=()=>mostrarTab(b.dataset.tab));
 $('guardarIA').onclick=async()=>{const p=provElegido(),a=AYUDA_CLAVE[p],sec={};if(a&&$('clave').value.trim())sec[a[2]]=$('clave').value.trim();
   if(a&&!sec[a[2]]&&!CFG.secretos[a[2]])return res('resIA','Falta la clave para '+CFG.proveedores[p],false);
-  await guardar({ia:{proveedor:p,respaldo_pago:$('respaldoPago').checked}},sec,'resIA')};
+  await guardar({ia:{proveedor:p,respaldo_pago:$('respaldoPago').checked,hibrido:$('hibrido').checked}},sec,'resIA')};
 $('probarIA').onclick=async()=>{res('resIA','Probando…');const r=await api('/api/probar/ia',{proveedor:provElegido()}).catch(e=>({ok:false,error:e.message}));
   res('resIA',r.ok?`Responde en ${(r.ms/1000).toFixed(1).replace('.',',')} s: "${r.respuesta}"`:r.error,r.ok)};
 $('instalarIA').onclick=async()=>{$('instalarIA').disabled=true;$('localBarra').style.display='block';res('localProg','Preparando…');
@@ -399,14 +480,17 @@ async function primeraVez(){try{const c=await api('/api/config');if(c.config.ia.
 setTimeout(primeraVez,1200);
 conectar();
 setTimeout(()=>$('ayuda').classList.add('oculta'),15000);  // visible 15 s al abrir; D la muestra/oculta
-addEventListener('keydown',e=>{if(e.target.closest&&e.target.closest('#config'))return;if(e.key==='c')abrirConfig();if(e.key==='Escape'){cerrarConfig();enviar({tipo:'voz.callar'});$('panel').classList.remove('visible')}if(e.key==='r')grilla();if(e.key==='d'){$('ayuda').classList.toggle('oculta')}});
+addEventListener('keydown',e=>{if(e.target.closest&&e.target.closest('#config'))return;if(e.key==='c')abrirConfig();if(e.key==='Escape'){cerrarConfig();enviar({tipo:'voz.callar'});$('panel').classList.remove('visible')}if(e.key==='r')grilla();if(e.key==='e')explorador.activo?cerrarExplorador():explorar(null);if(e.key==='Backspace'&&explorador.activo){const a=cards.find(c=>c.tipo==='atras');if(a)explorar(a.ruta)}if(e.key==='d'){$('ayuda').classList.toggle('oculta')}});
 /* Ratón como respaldo para probar sin cámara */
-let mdown=false;
+// clic corto = como TAP (entrar a carpeta / ampliar) · doble clic = abrir en Windows · arrastrar = mover
+let mdown=false,abajo=null,clicPend=null;
 const enUI=e=>e.target.closest&&e.target.closest('#config,#engranaje,#panel');
-addEventListener('mousedown',e=>{if(enUI(e))return;mdown=true;gesto({gesto:'pinch_inicio',x:e.clientX/W,y:e.clientY/H})});
+addEventListener('mousedown',e=>{if(enUI(e)||e.button!==0)return;mdown=true;abajo={x:e.clientX,y:e.clientY,t:Date.now()};gesto({gesto:'pinch_inicio',x:e.clientX/W,y:e.clientY/H})});
 addEventListener('mousemove',e=>{if(mdown)gesto({gesto:'arrastrar',x:e.clientX/W,y:e.clientY/H,dx:0})});
-addEventListener('mouseup',e=>{mdown=false;gesto({gesto:'pinch_fin'})});
-addEventListener('dblclick',e=>!enUI(e)&&gesto({gesto:'tap',x:e.clientX/W,y:e.clientY/H}));
+addEventListener('mouseup',e=>{if(!mdown)return;mdown=false;gesto({gesto:'pinch_fin'});
+  if(abajo&&Math.hypot(e.clientX-abajo.x,e.clientY-abajo.y)<6&&Date.now()-abajo.t<400){
+    const x=e.clientX/W,y=e.clientY/H;clearTimeout(clicPend);clicPend=setTimeout(()=>gesto({gesto:'tap',x,y}),260)}});
+addEventListener('dblclick',e=>{if(enUI(e))return;clearTimeout(clicPend);gesto({gesto:'doble_tap',x:e.clientX/W,y:e.clientY/H})});
 addEventListener('wheel',e=>!enUI(e)&&gesto({gesto:'escalar',factor:e.deltaY<0?1.08:.92,x:e.clientX/W,y:e.clientY/H}));
 </script>
 </body>

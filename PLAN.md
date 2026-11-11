@@ -125,6 +125,17 @@ Cada fase se ejecuta con `/fase N` (loop planificar → implementar → verifica
 - [x] Investigado en GitHub (isair/jarvis, GauravSingh9356/J.A.R.V.I.S, clawdcursor, AnubhavChaturvedi): web gratis (DuckDuckGo + Wikipedia), clima (Open-Meteo), recordatorios/alarmas/temporizadores con voz y notificación, memoria de largo plazo con bloqueo de secretos.
 - [ ] Próximas ideas de GitHub: dictado con tecla (offline, pegar en cualquier app), leer la pantalla con OCR de Windows, visión con cámara (modelo local multimodal), WhatsApp Web, Home Assistant.
 
+## v2.7.0 — LAY Núcleo (IA desde cero) + manos tipo Tony Stark + diagnóstico real
+- [x] LAY Núcleo: IA propia hecha desde cero (numpy, sin Ollama ni internet). 38 intenciones, 8360 frases de entrenamiento, 100 % en frases nuevas escritas a mano. Extrae datos (app, carpeta, volumen, ciudad, hora…), planea herramientas y responde con los resultados reales.
+- [x] Modo híbrido (por defecto): órdenes → Núcleo al instante; charla → la IA elegida. Si Ollama se cae, el Núcleo responde igual (último respaldo gratis).
+- [x] Respuestas más completas: búsqueda web previa para preguntas actuales (información al día), 2–4 frases útiles, nunca "no puedo" a secas.
+- [x] "Busca en mi navegador": abre Brave/Chrome con la búsqueda y además lee los resultados.
+- [x] Manos tipo Tony Stark: DOS PALMAS 1,2 s → escaneo biométrico → explorador holográfico de carpetas e imágenes (tap carpeta = entrar, tap imagen = ampliar, doble tap = abrir en Windows, swipe = otro monitor, ◀ atrás, ✕ cerrar). También con mouse y tecla E.
+- [x] "LAY, activa las manos en Descargas" → herramienta `manos_activar`.
+- [x] Causas reales arregladas: matplotlib excluido rompía MediaPipe en el exe (las manos nunca arrancaban); modelos pequeños escribían la herramienta como texto; consola cp1252 tumbaba el exe con "✓".
+- [x] Diagnóstico (Configuración → 🩺 o "LAY, haz un diagnóstico") y diagnóstico automático del exe en Windows real en cada build.
+- [ ] Siguiente: Núcleo aprende de Robert (frases corregidas → reentrena en la PC), dictado offline, OCR de pantalla.
+
 ## Fase 6 — Pulido  (v2.6.0)
 - [x] Icono en la bandeja: abrir, configuración, pausar cámara/micrófono, salir.
 - [x] Aviso de versión nueva (requiere Releases públicos).

@@ -206,6 +206,15 @@ def mover_ventana(titulo: str, monitor: int = 1, posicion: str = "completa") -> 
     return res
 
 
+def mover_ventana_a(
+    titulo: str, monitor: int | None = None, direccion: str | None = None, posicion: str = "maximizada"
+) -> dict:
+    """Mueve por número de monitor o por dirección respecto del principal ("arriba", "derecha"...)."""
+    if monitor is None:
+        monitor = monitor_vecino(direccion, desde=1) if direccion else 2
+    return mover_ventana(titulo, monitor, posicion)
+
+
 def enfocar_ventana(titulo: str) -> dict:
     w = _buscar_ventana(titulo)
     if w is None:

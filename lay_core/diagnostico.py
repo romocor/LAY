@@ -108,7 +108,7 @@ def p_nucleo() -> str:
     r = nucleo.entender("sube el volumen al 40")
     if r.intencion != "volumen":
         raise RuntimeError(f"entendió '{r.intencion}'")
-    return f"LAY Núcleo listo ({len(nucleo.modelo().etiquetas)} intenciones)"
+    return f"LAY Núcleo listo ({len(nucleo.cargar_modelo().etiquetas)} intenciones)"
 
 
 def p_ia() -> str:
@@ -238,7 +238,13 @@ def ejecutar(ci: bool = False, avisar: Callable[[dict], None] | None = None) -> 
 def main() -> None:
     ci = "--ci" in sys.argv
     print("=" * 70 + "\n  LAY · Diagnóstico" + (" (CI)" if ci else "") + "\n" + "=" * 70, flush=True)
-    res = ejecutar(ci, lambda r: print(f"  {'✓' if r['ok'] else '✗'} {r['nombre']:<30} {r['detalle']}", flush=True))
+    def mostrar(r: dict) -> None:
+        try:
+            print(f"  {'OK   ' if r['ok'] else 'FALLA'} {r['nombre']:<30} {r['detalle']}", flush=True)
+        except Exception:  # noqa: BLE001 — una consola rara nunca debe tumbar el diagnóstico
+            pass
+
+    res = ejecutar(ci, mostrar)
     fallas = [r for r in res if not r["ok"]]
     print(f"\n  {len(res) - len(fallas)}/{len(res)} correctas. Detalle: {DATA_DIR / 'diagnostico.txt'}")
     if ci:

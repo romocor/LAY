@@ -48,6 +48,7 @@ URLS = {
 }
 CLAVES = {"gemini": "GEMINI_API_KEY", "groq": "GROQ_API_KEY", "anthropic": "ANTHROPIC_API_KEY"}
 NOMBRES = {
+    "nucleo": "LAY Núcleo (IA propia, desde cero)",
     "ollama": "Local gratis (Ollama)",
     "gemini": "Gemini (gratis con clave)",
     "groq": "Groq (gratis con clave)",
@@ -391,6 +392,10 @@ class Anthropic:
 
 
 def crear(nombre: str, config_ia: dict):
+    if nombre == "nucleo":
+        from lay_core.nucleo import Nucleo
+
+        return Nucleo()
     if nombre == "anthropic":
         return Anthropic(config_ia)
     if nombre in URLS:
@@ -408,4 +413,6 @@ def orden_de_respaldo(config_ia: dict) -> list[str]:
             orden.append(p)
     if "anthropic" not in orden and config_ia.get("respaldo_pago") and os.environ.get("ANTHROPIC_API_KEY"):
         orden.append("anthropic")
+    if "nucleo" not in orden:
+        orden.append("nucleo")  # la IA propia siempre responde, aunque no haya ningún modelo instalado
     return orden

@@ -101,7 +101,7 @@ def test_confirmacion_humana_permite(cerebro):
         ],
     )
     assert "Confirmas" in cerebro.responder("manda un correo a x")
-    assert cerebro.responder("sí, envíalo") == "Enviado"
+    assert cerebro.responder("sí, envíalo") == "Hecho."  # el sí ejecuta la acción pendiente sin pasar por la IA
     assert cerebro.llamadas[-1][1]["confirmar"] is True
 
 

@@ -16,6 +16,7 @@ Vocabulario (igual a la referencia + extras):
   SWIPE rápido (3+ dedos)  -> lanzar la imagen al monitor de izq/der/arriba/abajo
   DOS DEDOS arriba/abajo   -> scroll (en modo mouse, la rueda real)
   PALMA ABIERTA 1,5 s      -> alternar modo overlay <-> mouse
+  DOS PALMAS 1,2 s         -> escaneo tipo Tony Stark: abre el explorador holográfico
   PUÑO 0,7 s               -> callar a LAY si está hablando
   PUÑO 2 s                 -> pausar / reanudar seguimiento
 """
@@ -41,6 +42,7 @@ BASE = {"indice": 5, "medio": 9, "anular": 13, "menique": 17}
 
 # Umbrales por defecto; `--calibrar` los ajusta a tu mano y cámara (lay.json -> "gestos")
 _G = {"pinch_on": 0.33, "pinch_off": 0.45, "swipe_vel": 2.2, "complejidad": 1, **getattr(CONFIG, "gestos", {})}
+ESCANEO_SEG = 1.2
 PINCH_ON, PINCH_OFF = _G["pinch_on"], _G["pinch_off"]  # histéresis, relativo al tamaño de la mano
 SWIPE_VEL = _G["swipe_vel"]
 TAP_MAX_S, DOBLE_TAP_S = 0.28, 0.45
@@ -103,6 +105,9 @@ class Clasificador:
         self.manos: dict[str, EstadoMano] = {"Left": EstadoMano(), "Right": EstadoMano()}
         self.dist_dos_manos: float | None = None
         self.t_clap = 0.0
+        self.t_escaneo: float | None = None  # dos palmas abiertas: escaneo tipo Tony Stark
+        self.t_escaneo_fin = -10.0
+        self.pct_escaneo = -1
         self.modo_mouse = CONFIG.modo_mouse_por_defecto
         self.pausado = False
 
@@ -137,6 +142,7 @@ class Clasificador:
 
         self.emitir({"tipo": "manos", "manos": {k: [[p.x, p.y, p.z] for p in v] for k, v in vistas.items()}})
 
+        self._escaneo(vistas, t)
         for lado, lm in vistas.items():
             self._mano(lado, lm, t)
         for lado in set(self.manos) - set(vistas):
@@ -147,6 +153,41 @@ class Clasificador:
             self._dos_manos(vistas["Left"], vistas["Right"], t)
         else:
             self.dist_dos_manos = None
+
+    @classmethod
+    def palma_abierta(cls, lm) -> bool:
+        return cls.dedos_extendidos(lm) == 4 and dist(lm[4], lm[8]) / cls.tam(lm) > 0.8
+
+    def _escaneo(self, vistas: dict, t: float) -> None:
+        """Las dos palmas abiertas mirando a la cámara durante ESCANEO_SEG -> 'escaneo' (abre el explorador)."""
+        ambas = len(vistas) == 2 and all(self.palma_abierta(v) for v in vistas.values())
+        if ambas and t - self.t_escaneo_fin > 2.5:
+            # separadas (no es un aplauso) y a una altura parecida
+            izq, der = vistas.get("Left"), vistas.get("Right")
+            separadas = izq is not None and der is not None and abs(izq[9].x - der[9].x) > 0.2
+            if not separadas:
+                return
+            self.t_escaneo = self.t_escaneo or t
+            for e in self.manos.values():
+                e.t_palma = None  # que no cambie a modo mouse mientras escanea
+            pct = min(100, int((t - self.t_escaneo) / ESCANEO_SEG * 100))
+            if pct // 10 != self.pct_escaneo // 10:
+                self.pct_escaneo = pct
+                self.emitir(
+                    {
+                        "tipo": "gesto",
+                        "gesto": "escaneo_progreso",
+                        "pct": pct,
+                        "manos": [[izq[9].x, izq[9].y], [der[9].x, der[9].y]],
+                    }
+                )
+            if pct >= 100:
+                self.t_escaneo, self.t_escaneo_fin, self.pct_escaneo = None, t, -1
+                self.emitir({"tipo": "gesto", "gesto": "escaneo"})
+            return
+        if self.t_escaneo is not None:
+            self.emitir({"tipo": "gesto", "gesto": "escaneo_cancelado"})
+        self.t_escaneo, self.pct_escaneo = None, -1
 
     def _mano(self, lado: str, lm, t: float) -> None:
         e = self.manos[lado]
@@ -177,8 +218,8 @@ class Clasificador:
         if self.pausado:
             return
 
-        # Palma abierta 1,5 s -> cambiar modo
-        if ext == 4 and d_pinch > 0.8:
+        # Palma abierta 1,5 s -> cambiar modo (no durante el escaneo de dos manos)
+        if ext == 4 and d_pinch > 0.8 and self.t_escaneo is None and t - self.t_escaneo_fin > 3:
             e.t_palma = e.t_palma or t
             if t - e.t_palma > 1.5:
                 self.modo_mouse = not self.modo_mouse
