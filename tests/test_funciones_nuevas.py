@@ -168,3 +168,12 @@ def test_energia_exige_confirmacion(monkeypatch, tmp_path):
 )
 def test_router_temas_nuevos(frase, tema):
     assert tema in router.temas(frase)
+
+
+def test_modelo_lay_no_ensena_a_inventar_resultados():
+    from lay_core import modelo_lay
+
+    mf = modelo_lay.modelfile("qwen2.5:3b", False)
+    assert "num_ctx 8192" in mf and mf.startswith("FROM qwen2.5:3b")
+    for prohibido in ("RAM", "borrador", "Dame un segundo"):
+        assert prohibido not in mf.split("SYSTEM")[1].split('"""', 2)[2]  # ningún ejemplo de acción sin herramienta
