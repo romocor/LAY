@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LAY — AI Interface</title>
+<style>
+:root{
+  --bg:#020b11; --cyan:#65f4ff; --blue:#149bc7; --ice:#bafaff;
+  --violet:#9a62ff; --line:rgba(76,211,235,.22);
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:var(--bg);color:#d9fbff;font-family:Inter,Segoe UI,Arial,sans-serif}
+body{min-height:100vh;display:grid;place-items:center;overflow:hidden;
+ background:
+ radial-gradient(ellipse at 50% 48%,rgba(0,156,190,.15),transparent 35%),
+ radial-gradient(ellipse at 50% 50%,#061b25 0%,#020b11 62%,#01060a 100%)}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.25;
+ background-image:linear-gradient(rgba(70,207,230,.12) 1px,transparent 1px),linear-gradient(90deg,rgba(70,207,230,.12) 1px,transparent 1px);
+ background-size:42px 42px;mask-image:radial-gradient(ellipse,black,transparent 78%)}
+body:after{content:"";position:fixed;inset:0;pointer-events:none;opacity:.13;
+ background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(110,238,255,.15) 4px,transparent 5px)}
+.interface{position:relative;width:min(100vw,1100px);height:min(100vh,760px);min-height:600px;display:grid;place-items:center;isolation:isolate}
+.corner{position:absolute;color:rgba(111,227,246,.55);font:10px/1.6 Consolas,monospace;letter-spacing:2px;text-transform:uppercase}
+.top-left{top:35px;left:5%;border-left:2px solid var(--cyan);padding:8px 14px}
+.top-right{top:35px;right:5%;text-align:right}
+.bottom-left{bottom:38px;left:5%;font-size:11px}
+.bottom-right{bottom:38px;right:5%;text-align:right}
+.status{color:var(--cyan);text-shadow:0 0 12px var(--cyan)}
+.core{position:relative;width:min(76vw,520px);aspect-ratio:1;display:grid;place-items:center;filter:drop-shadow(0 0 22px rgba(25,204,235,.22))}
+.ring{position:absolute;border-radius:50%;pointer-events:none}
+.ring.outer{inset:0;border:2px solid rgba(91,231,248,.72);box-shadow:0 0 16px #18c6e755,inset 0 0 18px #18c6e733;animation:breathe 4s ease-in-out infinite}
+.ring.outer:before,.ring.outer:after{content:"";position:absolute;border-radius:50%;inset:12px;border:1px dashed rgba(104,236,255,.65);animation:spin 42s linear infinite}
+.ring.outer:after{inset:-10px;border:1px solid transparent;border-top-color:var(--ice);border-bottom-color:rgba(31,190,226,.3);animation:spin 18s linear infinite reverse}
+.ring.mid{inset:8%;border:15px solid transparent;border-top-color:#39d9f2;border-right-color:#137ca5;border-bottom-color:#a3faff;border-left-color:#126987;box-shadow:0 0 24px #2adcf766,inset 0 0 20px #5ceaff55;animation:spin 16s linear infinite}
+.ring.mid:before{content:"";position:absolute;inset:-9px;border-radius:50%;border:2px solid rgba(134,248,255,.55);filter:blur(1px)}
+.ring.inner{inset:21%;border:2px solid rgba(107,239,255,.8);box-shadow:0 0 20px #36e8ff88,inset 0 0 24px #36e8ff33;animation:breathe 2.8s ease-in-out infinite}
+.ring.inner:before{content:"";position:absolute;inset:9px;border:1px dashed rgba(120,239,255,.5);border-radius:50%;animation:spin 24s linear infinite reverse}
+.ticks{position:absolute;inset:3%;border-radius:50%;background:repeating-conic-gradient(from 0deg,rgba(120,240,255,.8) 0deg 0.45deg,transparent .55deg 4deg);mask:radial-gradient(circle,transparent 67%,#000 68% 72%,transparent 73%);opacity:.72;animation:spin 70s linear infinite}
+.arc{position:absolute;inset:14%;border-radius:50%;border:5px solid transparent;border-top-color:#e2ffff;border-left-color:rgba(42,196,229,.7);transform:rotate(-35deg);filter:drop-shadow(0 0 8px var(--cyan));animation:spin 10s linear infinite}
+.arc.alt{inset:17%;border-width:2px;border-top-color:transparent;border-right-color:#29c8ef;border-bottom-color:rgba(114,241,255,.8);transform:rotate(60deg);animation:spin 22s linear infinite reverse}
+.core-center{position:relative;width:48%;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;text-align:center;
+ background:radial-gradient(circle at 50% 45%,rgba(18,87,111,.55),rgba(2,12,20,.96) 68%);
+ border:1px solid rgba(135,245,255,.35);box-shadow:inset 0 0 35px rgba(41,210,241,.18),0 0 35px rgba(34,209,239,.15)}
+.core-center:before,.core-center:after{content:"";position:absolute;inset:-17px;border-radius:50%;border:1px solid rgba(83,232,255,.3);animation:ripple 3.4s ease-out infinite}
+.core-center:after{animation-delay:1.7s}
+.brand{font-size:clamp(30px,6vw,58px);font-weight:800;letter-spacing:.16em;color:#e9ffff;text-shadow:0 0 8px white,0 0 22px #55eaff,0 0 42px #19b8e8;transform:translateX(.08em)}
+.sub{position:absolute;bottom:23%;font:9px Consolas,monospace;letter-spacing:3px;color:#62dff3}
+.node{position:absolute;width:7px;height:7px;border-radius:50%;background:#c9ffff;box-shadow:0 0 12px 4px #38dfff;top:15%;left:50%;animation:blink 1.6s infinite}
+.node.n2{top:50%;left:5%;animation-delay:.5s}.node.n3{top:82%;left:76%;animation-delay:1s}
+.wave{position:absolute;display:flex;align-items:center;justify-content:center;gap:4px;height:45px;opacity:.85}
+.wave span{width:2px;height:var(--h);border-radius:4px;background:var(--cyan);box-shadow:0 0 8px #4cecff;animation:wave 1s ease-in-out infinite alternate;animation-delay:var(--d)}
+.wave.left{left:4%;top:48%;width:17%}.wave.right{right:4%;top:48%;width:17%}
+.info{position:absolute;top:50%;width:150px;transform:translateY(-50%);font:10px/1.8 Consolas,monospace;color:rgba(133,227,243,.65);letter-spacing:1px}
+.info.left{left:3%}.info.right{right:3%;text-align:right}
+.info strong{display:block;color:#a5f8ff;font-size:12px;letter-spacing:2px}
+.info:before{content:"";display:block;width:100%;height:1px;background:linear-gradient(90deg,transparent,var(--cyan));margin-bottom:10px}
+.info.right:before{background:linear-gradient(90deg,var(--cyan),transparent)}
+.controls{position:absolute;bottom:105px;display:flex;gap:12px}
+button{border:1px solid rgba(100,230,250,.5);background:rgba(5,35,47,.72);color:#aaf8ff;padding:10px 20px;font-size:10px;letter-spacing:2px;cursor:pointer;clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px);transition:.25s}
+button:hover,button.active{background:rgba(20,133,163,.35);box-shadow:0 0 18px #26d8f766;color:white}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes breathe{0%,100%{opacity:.75;filter:brightness(.9)}50%{opacity:1;filter:brightness(1.5)}}
+@keyframes ripple{0%{transform:scale(.88);opacity:.8}100%{transform:scale(1.28);opacity:0}}
+@keyframes blink{0%,100%{opacity:.3}50%{opacity:1}}
+@keyframes wave{from{transform:scaleY(.35);opacity:.45}to{transform:scaleY(1.2);opacity:1}}
+@media(max-width:700px){.interface{min-height:560px}.core{width:min(88vw,440px)}.info{display:none}.wave.left{left:1%;width:12%}.wave.right{right:1%;width:12%}.top-left{left:4%;top:18px}.top-right{right:4%;top:18px}.bottom-left{left:4%;bottom:20px}.bottom-right{right:4%;bottom:20px}.controls{bottom:75px}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important}}
+</style>
+</head>
+<body>
+<main class="interface">
+  <div class="corner top-left">LAY SYSTEM <span class="status">● ONLINE</span><br>NEURAL CORE // v1.0</div>
+  <div class="corner top-right">AUDIO INPUT: <span class="status" id="audioState">STANDBY</span><br>SECURE CONNECTION</div>
+  <div class="info left"><strong>CAPACIDADES</strong>ANALIZAR<br>COMPRENDER<br>APRENDER<br>ASISTIR</div>
+  <div class="info right"><strong>LAY // 001</strong>INTELIGENCIA<br>ARTIFICIAL<br>ASISTENTE PERSONAL</div>
+
+  <div class="wave left" aria-hidden="true"></div>
+  <section class="core" aria-label="Interfaz holográfica de LAY">
+    <div class="ring outer"></div><div class="ticks"></div>
+    <div class="ring mid"></div><div class="arc"></div><div class="arc alt"></div>
+    <div class="ring inner"></div>
+    <div class="node"></div><div class="node n2"></div><div class="node n3"></div>
+    <div class="core-center">
+      <div class="brand">LAY</div>
+      <div class="sub">AI ASSISTANT</div>
+    </div>
+  </section>
+  <div class="wave right" aria-hidden="true"></div>
+
+  <div class="corner bottom-left">TU ASISTENTE // SIEMPRE ACTIVO</div>
+  <div class="corner bottom-right">SYSTEM STATUS: <span class="status">NOMINAL</span></div>
+  <div class="controls">
+    <button id="listen">ACTIVAR ESCUCHA</button>
+    <button id="pulse" class="active">PULSO: ON</button>
+  </div>
+</main>
+<script>
+const waves = document.querySelectorAll('.wave');
+waves.forEach(w => {
+  for(let i=0;i<27;i++){
+    const bar=document.createElement('span');
+    bar.style.setProperty('--h',`${5+Math.random()*30}px`);
+    bar.style.setProperty('--d',`${Math.random()*.8}s`);
+    w.appendChild(bar);
+  }
+});
+const listen=document.getElementById('listen');
+const audioState=document.getElementById('audioState');
+let listening=false, recognition=null;
+const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+listen.addEventListener('click',()=>{
+  if(!SpeechRecognition){audioState.textContent='NO DISPONIBLE';listen.textContent='MICRÓFONO NO DISPONIBLE';return;}
+  if(listening){recognition.stop();return;}
+  recognition=new SpeechRecognition();
+  recognition.lang='es-PE';recognition.continuous=false;recognition.interimResults=true;
+  recognition.onstart=()=>{listening=true;audioState.textContent='ESCUCHANDO';listen.textContent='DETENER ESCUCHA';document.body.classList.add('listening')};
+  recognition.onresult=e=>{const text=e.results[e.results.length-1][0].transcript;audioState.textContent=text.toUpperCase().slice(0,28)};
+  recognition.onerror=()=>{audioState.textContent='ERROR DE AUDIO'};
+  recognition.onend=()=>{listening=false;audioState.textContent='STANDBY';listen.textContent='ACTIVAR ESCUCHA'};
+  recognition.start();
+});
+document.getElementById('pulse').addEventListener('click',e=>{
+  const on=e.currentTarget.classList.toggle('active');
+  e.currentTarget.textContent=`PULSO: ${on?'ON':'OFF'}`;
+  document.querySelectorAll('.ring,.ticks,.arc,.core-center:before,.core-center:after,.wave span').forEach(el=>el.style.animationPlayState=on?'running':'paused');
+});
+</script>
+</body>
+</html>

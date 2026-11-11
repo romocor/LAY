@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LAY — Interfaz holográfica</title>
+<style>
+:root{--bg:#020b11;--cyan:#65f4ff;--ice:#bafaff;--violet:#9a62ff;--warn:#ffb547}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:#d9fbff;font-family:Inter,Segoe UI,Arial,sans-serif;overflow:hidden}
+body{background:radial-gradient(ellipse at 50% 48%,rgba(0,156,190,.15),transparent 35%),radial-gradient(ellipse at 50% 50%,#061b25 0%,#020b11 62%,#01060a 100%)}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.25;background-image:linear-gradient(rgba(70,207,230,.12) 1px,transparent 1px),linear-gradient(90deg,rgba(70,207,230,.12) 1px,transparent 1px);background-size:42px 42px;mask-image:radial-gradient(ellipse,black,transparent 78%)}
+body:after{content:"";position:fixed;inset:0;pointer-events:none;opacity:.12;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(110,238,255,.15) 4px,transparent 5px)}
+.corner{position:fixed;color:rgba(111,227,246,.6);font:10px/1.7 Consolas,monospace;letter-spacing:2px;text-transform:uppercase;z-index:5}
+.tl{top:24px;left:28px;border-left:2px solid var(--cyan);padding:6px 12px}.tr{top:24px;right:28px;text-align:right}
+.bl{bottom:22px;left:28px}.br{bottom:22px;right:28px;text-align:right}
+.status{color:var(--cyan);text-shadow:0 0 10px var(--cyan)}
+.opus{color:var(--violet);text-shadow:0 0 10px var(--violet)}
+/* núcleo */
+.core{position:fixed;left:50%;top:50%;width:min(46vmin,460px);aspect-ratio:1;transform:translate(-50%,-50%);display:grid;place-items:center;filter:drop-shadow(0 0 22px rgba(25,204,235,.22));transition:filter .4s}
+.ring{position:absolute;border-radius:50%}
+.r1{inset:0;border:2px solid rgba(91,231,248,.7);animation:breathe 4s ease-in-out infinite}
+.r1:before{content:"";position:absolute;inset:12px;border-radius:50%;border:1px dashed rgba(104,236,255,.6);animation:spin 42s linear infinite}
+.r2{inset:8%;border:13px solid transparent;border-top-color:#39d9f2;border-right-color:#137ca5;border-bottom-color:#a3faff;border-left-color:#126987;animation:spin 16s linear infinite}
+.r3{inset:21%;border:2px solid rgba(107,239,255,.8);animation:breathe 2.8s ease-in-out infinite}
+.ticks{position:absolute;inset:3%;border-radius:50%;background:repeating-conic-gradient(rgba(120,240,255,.8) 0 .45deg,transparent .55deg 4deg);mask:radial-gradient(circle,transparent 67%,#000 68% 72%,transparent 73%);opacity:.7;animation:spin 70s linear infinite}
+.arc{position:absolute;inset:14%;border-radius:50%;border:5px solid transparent;border-top-color:#e2ffff;border-left-color:rgba(42,196,229,.7);animation:spin 10s linear infinite}
+.center{position:relative;width:48%;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;text-align:center;background:radial-gradient(circle at 50% 45%,rgba(18,87,111,.55),rgba(2,12,20,.96) 68%);border:1px solid rgba(135,245,255,.35)}
+.brand{font-size:clamp(28px,5vmin,54px);font-weight:800;letter-spacing:.16em;color:#e9ffff;text-shadow:0 0 8px #fff,0 0 22px #55eaff,0 0 42px #19b8e8}
+.sub{position:absolute;bottom:22%;font:9px Consolas,monospace;letter-spacing:3px;color:#62dff3}
+body.escuchando .core{filter:drop-shadow(0 0 40px rgba(101,244,255,.7))}
+body.pensando .r2{animation-duration:2.5s}body.pensando .arc{animation-duration:1.6s}
+body.hablando .r3{animation:talk .35s ease-in-out infinite alternate}
+body.abierto .core{filter:drop-shadow(0 0 30px rgba(101,244,255,.45))}body.abierto .r1{border-color:#e2ffff}
+body.opus .r2{border-top-color:var(--violet);border-bottom-color:#d6c2ff}
+/* transcripción */
+#dialogo{position:fixed;left:50%;bottom:9%;transform:translateX(-50%);width:min(760px,86vw);text-align:center;font-size:15px;line-height:1.5;z-index:6}
+#dialogo .yo{color:rgba(186,250,255,.6);font-size:12px;letter-spacing:1px}
+#dialogo .lay{color:#e9ffff;text-shadow:0 0 12px rgba(101,244,255,.5)}
+/* tarjetas */
+#mesa{position:fixed;inset:0;perspective:1400px;z-index:3}
+.card{position:absolute;left:0;top:0;width:220px;height:150px;border-radius:10px;overflow:hidden;border:1px solid rgba(120,240,255,.55);box-shadow:0 0 22px rgba(38,216,247,.35),inset 0 0 18px rgba(38,216,247,.2);background:#031722;transform-origin:center;will-change:transform;transition:box-shadow .2s,opacity .3s}
+.card img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
+.card:after{content:attr(data-nombre);position:absolute;left:0;right:0;bottom:0;padding:4px 8px;font:9px Consolas,monospace;letter-spacing:1px;color:#aaf8ff;background:linear-gradient(transparent,rgba(2,12,20,.9))}
+.card.hover{box-shadow:0 0 30px rgba(101,244,255,.8),inset 0 0 22px rgba(101,244,255,.35)}
+.card.agarrada{box-shadow:0 0 40px #e2ffff;border-color:#e2ffff;z-index:20}
+.card.abierta{z-index:15}
+.card.lanzada{opacity:0}
+/* manos */
+#manos{position:fixed;inset:0;z-index:8;pointer-events:none}
+.cursor{position:fixed;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;border:2px solid var(--cyan);box-shadow:0 0 14px var(--cyan);z-index:9;pointer-events:none;transition:width .12s,height .12s,margin .12s,background .12s;display:none}
+.cursor.pinch{width:18px;height:18px;margin:-9px 0 0 -9px;background:rgba(226,255,255,.85)}
+#toast{position:fixed;bottom:17%;left:50%;transform:translateX(-50%);font:11px Consolas,monospace;letter-spacing:3px;color:var(--cyan);text-shadow:0 0 10px var(--cyan);opacity:0;transition:opacity .3s;z-index:10}
+#ayuda{position:fixed;left:50%;top:62px;transform:translateX(-50%);width:min(860px,70vw);padding:6px 14px;background:rgba(2,16,24,.85);border:1px solid rgba(101,244,255,.25);text-align:center;font:9px/1.7 Consolas,monospace;letter-spacing:1px;color:rgba(133,227,243,.6);z-index:5;transition:opacity .8s}
+#ayuda.oculta{opacity:0;pointer-events:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes breathe{0%,100%{opacity:.75}50%{opacity:1;filter:brightness(1.5)}}
+@keyframes talk{from{transform:scale(.96)}to{transform:scale(1.06)}}
+</style>
+</head>
+<body>
+<div class="corner tl">LAY SYSTEM <span class="status" id="online">● CONECTANDO</span><br>NEURAL CORE // v2.0</div>
+<div class="corner tr">VOZ: <span class="status" id="estadoVoz">STANDBY</span><br>MODELO: <span class="status" id="modelo">—</span></div>
+<div class="corner bl">MODO: <span class="status" id="modo">OVERLAY</span><br>HERRAMIENTA: <span id="tool">—</span></div>
+<div class="corner br">CÁMARA: <span class="status" id="fps">—</span><br>LATENCIA: <span class="status" id="latencia">—</span><br>MANOS: <span class="status" id="nManos">0</span><br>TARJETAS: <span id="nCards">0</span></div>
+
+<section class="core"><div class="ring r1"></div><div class="ticks"></div><div class="ring r2"></div><div class="arc"></div><div class="ring r3"></div>
+  <div class="center"><div class="brand">LAY</div><div class="sub">AI ASSISTANT</div></div></section>
+
+<div id="mesa"></div>
+<canvas id="manos"></canvas>
+<div class="cursor" id="cLeft"></div><div class="cursor" id="cRight"></div>
+<div id="dialogo"><div class="yo" id="yo"></div><div class="lay" id="lay">Di "LAY" para hablarme.</div></div>
+<div id="toast"></div>
+<div id="ayuda">PINCH tarjeta = agarrar · TAP = abrir/cerrar · ARRASTRAR = mover · QUIETO 1s = rotar 3D · DOS MANOS = escalar · CLAP = anillo central · SWIPE = otro monitor · PALMA 1,5s = modo mouse · DOS DEDOS = scroll · PUÑO = callar a LAY · PUÑO 2s = pausa · ESC callar · R reordenar · D debug</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const mesa=$('mesa'),cv=$('manos'),ctx=cv.getContext('2d');
+let W=innerWidth,H=innerHeight,debug=false;
+function resize(){W=innerWidth;H=innerHeight;cv.width=W;cv.height=H}resize();addEventListener('resize',resize);
+
+/* ---------- tarjetas ---------- */
+const cards=[];   // {el,ruta,x,y,s,ry,abierta}
+let agarrada=null,abierta=null,rotando=null,ultimaActiva=null;
+
+function cargar(rutas){
+  mesa.innerHTML='';cards.length=0;
+  rutas.slice(0,24).forEach((ruta,i)=>{
+    const el=document.createElement('div');el.className='card';
+    el.dataset.nombre=ruta.split(/[\\/]/).pop();
+    el.innerHTML=`<img loading="lazy" src="/miniatura?ruta=${encodeURIComponent(ruta)}&w=480">`;
+    mesa.appendChild(el);
+    cards.push({el,ruta,x:0,y:0,s:1,ry:0,abierta:false});
+  });
+  grilla();$('nCards').textContent=cards.length;toast(`${cards.length} IMÁGENES CARGADAS`);
+}
+function celdasLibres(cols,filas,escala){
+  // Celdas de una grilla que NO caen sobre el núcleo central (radio del anillo + margen)
+  const core=document.querySelector('.core').getBoundingClientRect();
+  const R=core.width/2+Math.hypot(110,75)*escala+16, cx=core.x+core.width/2, cy=core.y+core.height/2, out=[];
+  for(let f=0;f<filas;f++)for(let k=0;k<cols;k++){
+    const x=.1+k*(.8/Math.max(cols-1,1)), y=.24+f*(.48/Math.max(filas-1,1));  // libre: ayuda arriba, diálogo abajo
+    if(Math.hypot(x*W-cx,y*H-cy)>R)out.push([x,y]);
+  }
+  return out;
+}
+function grilla(){
+  const n=cards.length;let cols=Math.max(4,Math.ceil(Math.sqrt(n*1.8))),filas=3;
+  const esc=c=>Math.min(.8,W/c/220*.75);  // la tarjeta nunca ocupa más del 75 % de su columna
+  let libres=celdasLibres(cols,filas,esc(cols));
+  while(libres.length<n&&cols<12){cols+=1;filas=Math.min(filas+1,6);libres=celdasLibres(cols,filas,esc(cols))}
+  const s=esc(cols);
+  cards.forEach((c,i)=>{[c.x,c.y]=libres[i];c.s=s;c.ry=0;c.abierta=false;pintar(c)});
+}
+function anillo(){
+  const n=cards.length;cards.forEach((c,i)=>{const a=i/n*Math.PI*2-Math.PI/2;
+    c.x=.5+Math.cos(a)*.33*(H/W);c.y=.5+Math.sin(a)*.33;c.s=.6;c.ry=0;c.abierta=false;pintar(c)});
+  toast('CENTER-STAGE');
+}
+function pintar(c){
+  const w=220*c.s,h=150*c.s;
+  c.el.style.transform=`translate(${c.x*W-110}px,${c.y*H-75}px) scale(${c.s}) rotateY(${c.ry}deg)`;
+  c.el.classList.toggle('abierta',c.abierta);
+}
+function cardEn(x,y){
+  for(let i=cards.length-1;i>=0;i--){const c=cards[i];const hw=110*c.s,hh=75*c.s;
+    if(Math.abs(x*W-c.x*W)<hw&&Math.abs(y*H-c.y*H)<hh)return c}return null;
+}
+function toggleAbrir(c){
+  if(c.abierta){c.abierta=false;c.s=c._s||.8;c.x=c._x;c.y=c._y;abierta=null}
+  else{if(abierta)toggleAbrir(abierta);c._s=c.s;c._x=c.x;c._y=c.y;c.abierta=true;c.s=3;c.x=.5;c.y=.5;abierta=c;
+    const img=c.el.querySelector('img');if(!img.dataset.hd){img.dataset.hd=1;img.src=`/miniatura?ruta=${encodeURIComponent(c.ruta)}&w=1600`}}
+  pintar(c);
+}
+
+/* ---------- gestos ---------- */
+const cursores={Left:{x:.5,y:.5},Right:{x:.5,y:.5}};
+let offset={x:0,y:0},rotBase=0;
+function gesto(ev){
+  const x=ev.x,y=ev.y;
+  switch(ev.gesto){
+    case 'pinch_inicio':{const c=cardEn(x,y);if(c){agarrada=c;ultimaActiva=c;offset={x:c.x-x,y:c.y-y};c.el.classList.add('agarrada');mesa.appendChild(c.el)}break}
+    case 'arrastrar':if(agarrada&&!rotando){agarrada.x=x+offset.x;agarrada.y=y+offset.y;pintar(agarrada)}
+      if(rotando){rotando.ry=rotBase+ev.dx*540;pintar(rotando)}break;
+    case 'rotar3d':if(agarrada){rotando=agarrada;rotBase=agarrada.ry;toast('ROTACIÓN 3D')}break;
+    case 'pinch_fin':soltar();break;
+    case 'tap':{soltar();const c=cardEn(x,y)||abierta;if(c){toggleAbrir(c);ultimaActiva=c}break}
+    case 'doble_tap':{const c=cardEn(x,y);if(c)enviar({tipo:'overlay.abrir_archivo',ruta:c.ruta});break}
+    case 'escalar':{const c=agarrada||abierta||cardEn(x,y)||ultimaActiva;if(c){c.s=Math.min(Math.max(c.s*ev.factor,.3),5);pintar(c)}break}
+    case 'clap':anillo();break;
+    case 'lanzar':{const c=cardEn(x,y)||abierta||ultimaActiva;if(c){
+      // El hub decide el monitor vecino real (izq/der del monitor donde está el cursor)
+      c.el.classList.add('lanzada');enviar({tipo:'overlay.fling',ruta:c.ruta,direccion:ev.direccion});
+      toast(ev.direccion==='derecha'?'→ MONITOR DERECHO':'← MONITOR IZQUIERDO');setTimeout(()=>c.el.classList.remove('lanzada'),900)}break}
+    case 'modo':$('modo').textContent=ev.mouse?'MOUSE':'OVERLAY';toast(ev.mouse?'MODO MOUSE: controlas el escritorio':'MODO OVERLAY');
+      // En modo mouse el HUD a pantalla completa estorbaría: se minimiza y vuelve al salir
+      try{if(window.pywebview)ev.mouse?pywebview.api.minimizar():pywebview.api.restaurar()}catch(e){}break;
+    case 'scroll':{const dy=ev.pasos*.04;cards.forEach(c=>{if(!c.abierta){c.y-=dy;pintar(c)}});break}
+    case 'pausa':toast(ev.activo?'SEGUIMIENTO EN PAUSA':'SEGUIMIENTO ACTIVO');break;
+  }
+}
+function soltar(){if(agarrada)agarrada.el.classList.remove('agarrada');agarrada=null;rotando=null}
+
+/* ---------- dibujo de manos ---------- */
+const HUESOS=[[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
+function dibujarManos(manos){
+  ctx.clearRect(0,0,W,H);const lados=Object.keys(manos);$('nManos').textContent=lados.length;
+  ['Left','Right'].forEach(l=>{$('c'+l).style.display=lados.includes(l)?'block':'none'});
+  ctx.lineWidth=1.5;ctx.strokeStyle='rgba(101,244,255,.45)';ctx.fillStyle='#c9ffff';ctx.shadowColor='#38dfff';ctx.shadowBlur=8;
+  for(const l of lados){const p=manos[l].map(([x,y])=>[x*W,y*H]);  // ya llega espejado desde gestos.py
+    ctx.beginPath();HUESOS.forEach(([a,b])=>{ctx.moveTo(...p[a]);ctx.lineTo(...p[b])});ctx.stroke();
+    p.forEach(([x,y],i)=>{ctx.beginPath();ctx.arc(x,y,i%4===0?3.2:2,0,7);ctx.fill()})}
+}
+function cursor(ev){
+  const el=$('c'+ev.mano);cursores[ev.mano]={x:ev.x,y:ev.y};
+  el.style.left=ev.x*W+'px';el.style.top=ev.y*H+'px';el.classList.toggle('pinch',ev.pinch);
+  cards.forEach(c=>c.el.classList.remove('hover'));const c=cardEn(ev.x,ev.y);if(c)c.el.classList.add('hover');
+}
+
+/* ---------- voz / HUD ---------- */
+function voz(ev){
+  document.body.classList.remove('escuchando','pensando','hablando','abierto');
+  if(ev.estado!=='standby')document.body.classList.add(ev.estado);
+  $('estadoVoz').textContent=ev.estado.toUpperCase();
+  if(ev.estado==='hablando'&&ev.texto)$('lay').textContent=ev.texto;
+}
+function toast(t){const e=$('toast');e.textContent=t;e.style.opacity=1;clearTimeout(e._t);e._t=setTimeout(()=>e.style.opacity=0,1600)}
+
+/* ---------- conexión ---------- */
+let ws;
+function enviar(o){if(ws&&ws.readyState===1)ws.send(JSON.stringify(o))}
+function conectar(){
+  ws=new WebSocket(`ws://${location.host||'127.0.0.1:8765'}/ws`);
+  ws.onopen=()=>{$('online').textContent='● ONLINE'};
+  ws.onclose=()=>{$('online').textContent='● RECONECTANDO';setTimeout(conectar,1500)};
+  ws.onmessage=m=>{const ev=JSON.parse(m.data);
+    switch(ev.tipo){
+      case 'manos':dibujarManos(ev.manos);break;
+      case 'cursor':cursor(ev);break;
+      case 'gesto':gesto(ev);break;
+      case 'overlay.cargar':cargar(ev.rutas||[]);break;
+      case 'overlay.colocar':{const c=cards[ev.indice];if(c){c.x=ev.x;c.y=ev.y;c.s=ev.escala;pintar(c)}break}
+      case 'voz.estado':voz(ev);break;
+      case 'voz.transcripcion':$('yo').textContent='TÚ: '+ev.texto;break;
+      case 'remoto.comando':$('yo').textContent='REMOTO: '+ev.texto;break;
+      case 'hud.modelo':$('modelo').textContent=ev.nivel.toUpperCase()+' · '+ev.modelo.replace('claude-','');
+        $('modelo').className=ev.nivel==='profundo'?'opus':'status';document.body.classList.toggle('opus',ev.nivel==='profundo');break;
+      case 'hud.fps':$('fps').textContent=ev.fps+' FPS';$('fps').style.color=ev.fps>=25?'':'var(--warn)';break;
+      case 'hud.camara':if(!ev.ok){$('fps').textContent='SIN SEÑAL';$('fps').style.color='var(--warn)';toast('CÁMARA DESCONECTADA: reintentando')}break;
+      case 'hud.latencia':$('latencia').textContent=(ev.ms/1000).toFixed(1).replace('.',',')+' s';
+        $('latencia').style.color=ev.ms<1500?'':'var(--warn)';break;
+      case 'hud.error':toast('ERROR: '+ev.detalle.slice(0,60));break;
+      case 'hud.herramienta':$('tool').textContent=ev.nombre;break;
+    }};
+}
+conectar();
+setTimeout(()=>$('ayuda').classList.add('oculta'),15000);  // visible 15 s al abrir; D la muestra/oculta
+addEventListener('keydown',e=>{if(e.key==='Escape')enviar({tipo:'voz.callar'});if(e.key==='r')grilla();if(e.key==='d'){$('ayuda').classList.toggle('oculta')}});
+/* Ratón como respaldo para probar sin cámara */
+let mdown=false;
+addEventListener('mousedown',e=>{mdown=true;gesto({gesto:'pinch_inicio',x:e.clientX/W,y:e.clientY/H})});
+addEventListener('mousemove',e=>{if(mdown)gesto({gesto:'arrastrar',x:e.clientX/W,y:e.clientY/H,dx:0})});
+addEventListener('mouseup',e=>{mdown=false;gesto({gesto:'pinch_fin'})});
+addEventListener('dblclick',e=>gesto({gesto:'tap',x:e.clientX/W,y:e.clientY/H}));
+addEventListener('wheel',e=>gesto({gesto:'escalar',factor:e.deltaY<0?1.08:.92,x:e.clientX/W,y:e.clientY/H}));
+</script>
+</body>
+</html>

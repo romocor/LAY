@@ -1,0 +1,43 @@
+{
+  "nombre": "LAY",
+  "wake_words": ["lay", "ley", "lei", "oye lay", "oye ley"],
+  "confianza_wake": 0.75,
+  "microfono": null,
+  "idioma": "es-PE",
+  "voz_tts": "es-PE-AlexNeural",
+  "raices_busqueda": ["~/Documents", "~/Desktop", "~/Downloads", "~/OneDrive"],
+  "carpeta_galeria": "~/Pictures",
+  "camara_indice": 0,
+  "modo_mouse_por_defecto": false,
+  "apps": {
+    "chrome": "start chrome",
+    "edge": "start msedge",
+    "spotify": "start spotify:",
+    "vscode": "code",
+    "explorador": "explorer",
+    "excel": "start excel",
+    "word": "start winword",
+    "revit": "%ProgramFiles%\\Autodesk\\Revit 2025\\Revit.exe",
+    "powerbi": "start ms-powerbi:",
+    "youtube": "https://www.youtube.com",
+    "gmail": "https://mail.google.com",
+    "outlook": "https://outlook.office.com/mail/",
+    "blackboard": "https://pucp.blackboard.com"
+  },
+  "workspaces": {
+    "trabajo": [
+      {"app": "outlook", "titulo": "Outlook", "monitor": 1, "posicion": "completa"},
+      {"app": "excel", "titulo": "Excel", "monitor": 2, "posicion": "completa"},
+      {"app": "powerbi", "titulo": "Power BI", "monitor": 3, "posicion": "completa"}
+    ],
+    "programar": [
+      {"app": "vscode", "titulo": "Visual Studio Code", "monitor": 2, "posicion": "completa"},
+      {"app": "chrome", "titulo": "Chrome", "monitor": 1, "posicion": "izquierda"},
+      {"app": "spotify", "titulo": "Spotify", "monitor": 3, "posicion": "derecha"}
+    ],
+    "estudio": [
+      {"app": "blackboard", "titulo": "Blackboard", "monitor": 1, "posicion": "completa"},
+      {"app": "word", "titulo": "Word", "monitor": 2, "posicion": "completa"}
+    ]
+  }
+}

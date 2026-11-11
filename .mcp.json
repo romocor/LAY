@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "lay-pc": {
+      "command": "python",
+      "args": ["-m", "lay_mcp.server"],
+      "env": {"PYTHONUTF8": "1"}
+    }
+  }
+}

@@ -1,0 +1,42 @@
+# Compila LAY.exe + instalador en un runner Windows en cada push a main y en cada tag v*.
+# Descarga: pestaña Actions -> último run -> Artifacts "LAY-windows".  Con tag v2.0.1 crea un Release.
+name: build-exe
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Inno Setup
+        run: choco install innosetup -y --no-progress
+      - name: Versión
+        id: ver
+        shell: pwsh
+        run: |
+          $v = if ("${{ github.ref_type }}" -eq "tag") { "${{ github.ref_name }}".TrimStart("v") } else { "2.0.0-dev.${{ github.run_number }}" }
+          "version=$v" >> $env:GITHUB_OUTPUT
+      - name: Build
+        shell: pwsh
+        run: ./build_exe.ps1 -Version ${{ steps.ver.outputs.version }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LAY-windows
+          path: |
+            dist/LAY_Setup_*.exe
+            dist/LAY_portable_*.zip
+      - name: Release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/LAY_Setup_*.exe
+            dist/LAY_portable_*.zip
