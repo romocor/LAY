@@ -8,7 +8,7 @@
       "mcp__lay-pc__sistema_estado", "mcp__lay-pc__archivos_buscar", "mcp__lay-pc__monitores_listar",
       "mcp__lay-pc__ventanas_listar"
     ],
-    "ask": ["Bash(git push:*)", "mcp__lay-pc__teclado_escribir", "mcp__lay-pc__gmail_enviar", "mcp__lay-pc__outlook_enviar", "mcp__lay-pc__ventana_cerrar"],
+    "ask": ["Bash(git push:*)", "mcp__lay-pc__teclado_escribir", "mcp__lay-pc__gmail_enviar", "mcp__lay-pc__outlook_enviar", "mcp__lay-pc__gmail_enviar_borrador", "mcp__lay-pc__outlook_enviar_borrador", "mcp__lay-pc__ventana_cerrar"],
     "deny": ["Read(./.env)", "Read(~/.lay/**)", "Edit(./.env)"]
   },
   "hooks": {

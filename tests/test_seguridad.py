@@ -20,4 +20,12 @@ def test_sensible_confirmado_ejecuta(tmp_path, monkeypatch):
 
 
 def test_rutas_sistema_bloqueadas():
-    assert not ruta_permitida("/etc/passwd")
+    import platform
+
+    if platform.system() == "Windows":
+        assert not ruta_permitida(r"C:\Windows\System32\drivers\etc\hosts")
+        assert not ruta_permitida("c:/program files/app/x.exe")  # mayúsculas y barras da igual
+        assert ruta_permitida(r"C:\Users\robert\Pictures\obra.jpg")
+    else:
+        assert not ruta_permitida("/etc/passwd")
+        assert ruta_permitida("/home/robert/fotos/obra.jpg")

@@ -50,6 +50,13 @@ body.opus .r2{border-top-color:var(--violet);border-bottom-color:#d6c2ff}
 #manos{position:fixed;inset:0;z-index:8;pointer-events:none}
 .cursor{position:fixed;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;border:2px solid var(--cyan);box-shadow:0 0 14px var(--cyan);z-index:9;pointer-events:none;transition:width .12s,height .12s,margin .12s,background .12s;display:none}
 .cursor.pinch{width:18px;height:18px;margin:-9px 0 0 -9px;background:rgba(226,255,255,.85)}
+#panel{position:fixed;right:28px;top:140px;width:min(380px,30vw);max-height:62vh;overflow:hidden;padding:14px 16px;background:rgba(2,16,24,.88);border:1px solid rgba(101,244,255,.35);box-shadow:0 0 24px rgba(38,216,247,.2);z-index:7;transform:translateX(120%);transition:transform .45s cubic-bezier(.2,.8,.2,1)}
+#panel.visible{transform:none}
+#panel h3{margin:0 0 10px;font:11px Consolas,monospace;letter-spacing:3px;color:var(--cyan)}
+#panel .it{padding:7px 0;border-top:1px solid rgba(101,244,255,.12)}
+#panel .t{font-size:13px;color:#e9ffff;line-height:1.35}#panel .d{font-size:11px;color:rgba(186,250,255,.6);margin-top:2px}
+#panel .e{float:right;font:9px Consolas,monospace;letter-spacing:1px;padding:2px 6px;border:1px solid rgba(101,244,255,.4);color:var(--cyan);margin-left:8px}
+#panel .e.urg{border-color:var(--warn);color:var(--warn)}
 #toast{position:fixed;bottom:17%;left:50%;transform:translateX(-50%);font:11px Consolas,monospace;letter-spacing:3px;color:var(--cyan);text-shadow:0 0 10px var(--cyan);opacity:0;transition:opacity .3s;z-index:10}
 #ayuda{position:fixed;left:50%;top:62px;transform:translateX(-50%);width:min(860px,70vw);padding:6px 14px;background:rgba(2,16,24,.85);border:1px solid rgba(101,244,255,.25);text-align:center;font:9px/1.7 Consolas,monospace;letter-spacing:1px;color:rgba(133,227,243,.6);z-index:5;transition:opacity .8s}
 #ayuda.oculta{opacity:0;pointer-events:none}
@@ -72,6 +79,7 @@ body.opus .r2{border-top-color:var(--violet);border-bottom-color:#d6c2ff}
 <div class="cursor" id="cLeft"></div><div class="cursor" id="cRight"></div>
 <div id="dialogo"><div class="yo" id="yo"></div><div class="lay" id="lay">Di "LAY" para hablarme.</div></div>
 <div id="toast"></div>
+<aside id="panel"><h3 id="panelTitulo"></h3><div id="panelItems"></div></aside>
 <div id="ayuda">PINCH tarjeta = agarrar · TAP = abrir/cerrar · ARRASTRAR = mover · QUIETO 1s = rotar 3D · DOS MANOS = escalar · CLAP = anillo central · SWIPE = otro monitor · PALMA 1,5s = modo mouse · DOS DEDOS = scroll · PUÑO = callar a LAY · PUÑO 2s = pausa · ESC callar · R reordenar · D debug</div>
 
 <script>
@@ -185,6 +193,14 @@ function voz(ev){
   $('estadoVoz').textContent=ev.estado.toUpperCase();
   if(ev.estado==='hablando'&&ev.texto)$('lay').textContent=ev.texto;
 }
+function esc(t){return String(t??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function mostrarPanel(ev){
+  // Texto de correos = contenido externo: siempre escapado (nunca innerHTML crudo)
+  $('panelTitulo').textContent=(ev.titulo||'').toUpperCase();
+  $('panelItems').innerHTML=(ev.items||[]).map(i=>{const e=String(i.etiqueta||'');const urg=/hoy|urgente|vence/i.test(e);
+    return `<div class="it">${e?`<span class="e ${urg?'urg':''}">${esc(e.toUpperCase())}</span>`:''}<div class="t">${esc(i.titulo)}</div>${i.detalle?`<div class="d">${esc(i.detalle)}</div>`:''}</div>`}).join('');
+  const p=$('panel');p.classList.add('visible');clearTimeout(p._t);p._t=setTimeout(()=>p.classList.remove('visible'),(ev.segundos||25)*1000);
+}
 function toast(t){const e=$('toast');e.textContent=t;e.style.opacity=1;clearTimeout(e._t);e._t=setTimeout(()=>e.style.opacity=0,1600)}
 
 /* ---------- conexión ---------- */
@@ -210,13 +226,14 @@ function conectar(){
       case 'hud.camara':if(!ev.ok){$('fps').textContent='SIN SEÑAL';$('fps').style.color='var(--warn)';toast('CÁMARA DESCONECTADA: reintentando')}break;
       case 'hud.latencia':$('latencia').textContent=(ev.ms/1000).toFixed(1).replace('.',',')+' s';
         $('latencia').style.color=ev.ms<1500?'':'var(--warn)';break;
+      case 'hud.panel':mostrarPanel(ev);break;
       case 'hud.error':toast('ERROR: '+ev.detalle.slice(0,60));break;
       case 'hud.herramienta':$('tool').textContent=ev.nombre;break;
     }};
 }
 conectar();
 setTimeout(()=>$('ayuda').classList.add('oculta'),15000);  // visible 15 s al abrir; D la muestra/oculta
-addEventListener('keydown',e=>{if(e.key==='Escape')enviar({tipo:'voz.callar'});if(e.key==='r')grilla();if(e.key==='d'){$('ayuda').classList.toggle('oculta')}});
+addEventListener('keydown',e=>{if(e.key==='Escape'){enviar({tipo:'voz.callar'});$('panel').classList.remove('visible')}if(e.key==='r')grilla();if(e.key==='d'){$('ayuda').classList.toggle('oculta')}});
 /* Ratón como respaldo para probar sin cámara */
 let mdown=false;
 addEventListener('mousedown',e=>{mdown=true;gesto({gesto:'pinch_inicio',x:e.clientX/W,y:e.clientY/H})});

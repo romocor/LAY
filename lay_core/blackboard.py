@@ -15,14 +15,31 @@ from datetime import date, datetime, timedelta, timezone
 
 import httpx
 
+_CACHE: dict = {"t": 0.0, "eventos": None}
+CACHE_S = 600  # el feed de Blackboard cambia poco; evita descargarlo en cada pregunta
+
 
 def _ics() -> list[dict]:
-    from icalendar import Calendar
+    import time
 
+    if _CACHE["eventos"] is not None and time.time() - _CACHE["t"] < CACHE_S:
+        return _CACHE["eventos"]
+    eventos = parsear_ics(_descargar_ics())
+    _CACHE.update(t=time.time(), eventos=eventos)
+    return eventos
+
+
+def _descargar_ics() -> bytes:
     url = os.environ.get("BLACKBOARD_ICS_URL")
     if not url:
         raise RuntimeError("Falta BLACKBOARD_ICS_URL en .env (ver docstring de lay_core/blackboard.py)")
-    cal = Calendar.from_ical(httpx.get(url, timeout=20, follow_redirects=True).content)
+    return httpx.get(url, timeout=20, follow_redirects=True).content
+
+
+def parsear_ics(contenido: bytes) -> list[dict]:
+    from icalendar import Calendar
+
+    cal = Calendar.from_ical(contenido)
     eventos = []
     for ev in cal.walk("VEVENT"):
         ini = ev.decoded("DTSTART")
@@ -42,14 +59,19 @@ def _ics() -> list[dict]:
 
 
 def pendientes(dias: int = 14) -> list[dict]:
+    """Entregas/exámenes de los próximos `dias`, ordenados, con "hoy / mañana / en N días"."""
     ahora = datetime.now(timezone.utc)
     fin = ahora + timedelta(days=dias)
-    evs = [e for e in _ics() if ahora <= e["fecha"] <= fin]
-    evs.sort(key=lambda e: e["fecha"])
-    return [
-        {**e, "fecha": e["fecha"].astimezone().strftime("%a %d/%m %H:%M"), "dias_restantes": (e["fecha"] - ahora).days}
-        for e in evs
-    ]
+    evs = sorted((e for e in _ics() if ahora <= e["fecha"] <= fin), key=lambda e: e["fecha"])
+    hoy = ahora.astimezone().date()
+    out = []
+    for e in evs:
+        d = (e["fecha"].astimezone().date() - hoy).days
+        cuando = "hoy" if d == 0 else "mañana" if d == 1 else f"en {d} días"
+        out.append(
+            {**e, "fecha": e["fecha"].astimezone().strftime("%d/%m %H:%M"), "cuando": cuando, "dias_restantes": d}
+        )
+    return out
 
 
 def cursos_rest() -> list[dict]:

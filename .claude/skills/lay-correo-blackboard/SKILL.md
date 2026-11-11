@@ -17,6 +17,13 @@ description: Configuración y uso de Gmail, Outlook y Blackboard en LAY. Usar pa
 - Camino recomendado: Calendario → Compartir → copiar URL `.ics` → `BLACKBOARD_ICS_URL`.
 - REST solo con credenciales que da la universidad.
 
+## Herramientas (Fase 4)
+- `correo_resumen(horas)` → ambas bandejas; luego `hud_panel` + 2-3 frases habladas.
+- `gmail_leer` / `outlook_leer` → cuerpo como texto, envuelto con `aviso` de contenido externo.
+- `*_responder_borrador(mensaje_id, cuerpo)` → borrador en el hilo; `*_enviar_borrador` (sensible) solo tras "sí".
+- Cabeceras con `_mensaje()` (EmailMessage): nunca MIMEText a mano (rompía nombres con tilde).
+- Configuración: `LAY-cli --rol configurar` (API key, iCal, JSON de Gmail, client ID de Outlook).
+
 ## Patrones de uso
 - "Resume mis correos": `gmail_buscar("is:unread newer_than:1d")` + `outlook_no_leidos` → 3 frases.
 - "Responde a X": borrador primero, leer en voz alta, enviar solo con confirmación.

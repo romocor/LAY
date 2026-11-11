@@ -1,7 +1,7 @@
 ; Instalador de LAY (Inno Setup 6) -> dist/LAY_Setup_<ver>.exe
 #define Ver GetEnv("LAY_VERSION")
 #if Ver == ""
-  #define Ver "2.3.0"
+  #define Ver "2.4.0"
 #endif
 
 [Setup]

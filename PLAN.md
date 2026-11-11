@@ -81,7 +81,17 @@ Cada fase se ejecuta con `/fase N` (loop planificar → implementar → verifica
 - [ ] Fluidez: ≥ 25 fps de seguimiento, overlay a 60 fps.
 **Aceptación:** demo de 1 min sin tocar teclado ni mouse: abrir galería, ampliar, rotar, mandar una foto al monitor 3, abrir una carpeta.
 
-## Fase 4 — Correo y Blackboard
+## Fase 4 — Correo y Blackboard  (código listo v2.4.0)
+- [x] Asistente de configuración (`LAY-cli --rol configurar`); se abre solo la primera vez que abres LAY.exe sin clave.
+- [x] Leer correo completo (Gmail/Outlook; HTML → texto).
+- [x] Responder en el MISMO hilo como borrador (Gmail: In-Reply-To/References/threadId; Outlook: createReply/All).
+- [x] Enviar borrador = acción sensible con confirmación.
+- [x] `correo_resumen`: Gmail + Outlook juntos; si una cuenta falla sigue con la otra. Router → Opus.
+- [x] Anti prompt-injection: contenido de correos marcado como externo + tests (un correo que pide reenviar no logra enviar).
+- [x] Panel en el HUD (`hud_panel`) con la lista mientras LAY habla; HTML de terceros siempre escapado.
+- [x] Blackboard: caché 10 min, "hoy / mañana / en N días".
+- [x] Bug: remitentes con tilde rompían la cabecera Para (el correo podía rebotar) → EmailMessage.
+- [x] 15 tests nuevos (63 en total).
 - [ ] OAuth Gmail y Outlook (PUCP) funcionando; tokens en `~/.lay`.
 - [ ] "Resúmeme los correos de hoy" → 3 frases + prioridades (Opus).
 - [ ] "Responde a X que…" → borrador leído en voz alta → enviar con confirmación.

@@ -22,7 +22,8 @@ jobs:
         id: ver
         shell: pwsh
         run: |
-          $v = if ("${{ github.ref_type }}" -eq "tag") { "${{ github.ref_name }}".TrimStart("v") } else { "2.0.0-dev.${{ github.run_number }}" }
+          $base = (Select-String -Path pyproject.toml -Pattern '^version = "(.+)"').Matches[0].Groups[1].Value
+          $v = if ("${{ github.ref_type }}" -eq "tag") { "${{ github.ref_name }}".TrimStart("v") } else { "$base" }
           "version=$v" >> $env:GITHUB_OUTPUT
       - name: Build
         shell: pwsh

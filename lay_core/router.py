@@ -17,9 +17,10 @@ from dataclasses import dataclass
 from lay_core.config import CONFIG
 
 DIFICIL = re.compile(
-    r"\b(analiz|planific|plan de|compar|estrategi|redact|resum[ei]\w* (todos|varios|la semana)|"
+    r"\b(analiz|planific|plan de|compar|estrategi|redact|res[uú]m[eií]\w* (todos|varios|la semana)|"
     r"prioriz|organiza(me)? (la|mi) semana|investig|c[oó]digo|programa|depura|arquitectura|por qu[eé]|"
-    r"explica|decide|recomienda|propuesta|presupuesto|cronograma|(haz|hazme|prepara|genera|elabora)(me)? (un |el |una )?(informe|reporte|resumen))",
+    r"explica|decide|recomienda|propuesta|presupuesto|cronograma|res[uú]m\w* (mis |los |el )?correos?|"
+    r"resp[oó]nde(le)? (a|al)|cont[eé]sta(le)? (a|al)|(haz|hazme|prepara|genera|elabora)(me)? (un |el |una )?(informe|reporte|resumen))",
     re.I,
 )
 MEDIO = re.compile(

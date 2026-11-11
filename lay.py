@@ -5,6 +5,7 @@
   LAY.exe --sin-camara       # sin gestos
   LAY.exe --rol mcp          # servidor MCP (para Claude Desktop / Claude Code)
   LAY.exe --rol mcp --http   # MCP remoto con token
+  LAY.exe --rol configurar   # asistente: API key, Blackboard, Gmail, Outlook
   LAY.exe --rol hub|gestos|voz [args]   # un solo loop (lo usa el lanzador)
 
 En desarrollo es igual: python lay.py ...
@@ -23,6 +24,7 @@ ROLES = {
     "gestos": "loops.gestos",
     "voz": "loops.voz",
     "mcp": "lay_mcp.server",
+    "configurar": "lay_core.configurar",
 }
 
 
@@ -78,6 +80,19 @@ def _popen(cmd: list[str]) -> subprocess.Popen:
 
 def lanzador(a: argparse.Namespace) -> None:
     from lay_core.config import HUB_URL
+    from lay_core.configurar import falta_configurar
+
+    if falta_configurar():
+        # Primera vez: abre el asistente en una consola propia (LAY.exe no tiene consola)
+        flags = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
+        subprocess.run(comando_rol("configurar"), creationflags=flags)
+        from dotenv import load_dotenv
+
+        from lay_core.config import DATA_DIR
+
+        load_dotenv(DATA_DIR / ".env", override=True)
+        if falta_configurar():
+            raise SystemExit("LAY necesita tu clave de Anthropic para funcionar.")
 
     procs = [_popen(comando_rol("hub"))]
     if not esperar_hub(HUB_URL):
@@ -119,7 +134,7 @@ def main() -> None:
     ap.add_argument("--version", action="store_true")
     a, resto = ap.parse_known_args()
     if a.version:
-        print("LAY 2.3.0")
+        print("LAY 2.4.0")
         return
     if a.rol:
         ejecutar_rol(a.rol, resto + (["--texto"] if a.texto else []))
