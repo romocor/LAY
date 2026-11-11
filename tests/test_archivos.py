@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from lay_core import archivos
 
 
@@ -32,6 +34,6 @@ def test_explorar_carpeta_para_el_holograma(tmp_path):
     (tmp_path / "notas.txt").write_text("x")
     r = archivos.explorar(str(tmp_path))
     assert [c["nombre"] for c in r["carpetas"]] == ["Obra Lima"]
-    assert sorted(p.split("/")[-1] for p in r["imagenes"]) == ["foto.JPG", "plano.png"]
+    assert sorted(Path(p).name for p in r["imagenes"]) == ["foto.JPG", "plano.png"]
     assert r["otros"] == 1 and r["padre"]
     assert "error" in archivos.explorar(str(tmp_path / "no-existe"))

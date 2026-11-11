@@ -238,6 +238,7 @@ def ejecutar(ci: bool = False, avisar: Callable[[dict], None] | None = None) -> 
 def main() -> None:
     ci = "--ci" in sys.argv
     print("=" * 70 + "\n  LAY · Diagnóstico" + (" (CI)" if ci else "") + "\n" + "=" * 70, flush=True)
+
     def mostrar(r: dict) -> None:
         try:
             print(f"  {'OK   ' if r['ok'] else 'FALLA'} {r['nombre']:<30} {r['detalle']}", flush=True)

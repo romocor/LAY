@@ -20,6 +20,7 @@ import os
 os.environ.setdefault("MPLBACKEND", "Agg")  # matplotlib (lo importa mediapipe) sin ventanas ni Tk
 import subprocess
 import sys
+import time
 
 # La consola de Windows usa cp1252: un "✓" o "ñ" en un print mataba el exe. UTF-8 y nunca reventar por un carácter.
 for _flujo in (sys.stdout, sys.stderr):
@@ -27,7 +28,6 @@ for _flujo in (sys.stdout, sys.stderr):
         _flujo.reconfigure(encoding="utf-8", errors="replace")
     except (AttributeError, ValueError, OSError):
         pass
-import time
 
 ROLES = {
     "hub": "loops.hub",
