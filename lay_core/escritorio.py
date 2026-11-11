@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import platform
+import re
 import subprocess
 import time
 from pathlib import Path
@@ -249,7 +250,12 @@ def lanzar_app(nombre: str) -> dict:
         return {"error": f"App '{nombre}' no configurada", "disponibles": sorted(CONFIG.apps)}
     if destino.startswith(("http://", "https://")) or Path(os.path.expandvars(destino)).exists():
         return abrir(os.path.expandvars(destino))
-    subprocess.Popen(destino, shell=True)
+    from lay_core.procesos import CONSOLA_NUEVA
+    from lay_core.procesos import ES_WINDOWS as _WIN
+
+    # cmd/powershell/terminal pedidos a propósito sí se ven; lo demás nace sin consola
+    consola = re.match(r"^\s*(cmd|powershell|pwsh|wt)(\.exe)?\b", destino, re.I)
+    subprocess.Popen(destino, shell=True, creationflags=CONSOLA_NUEVA if (_WIN and consola) else 0)
     return {"ok": True, "lanzado": destino}
 
 

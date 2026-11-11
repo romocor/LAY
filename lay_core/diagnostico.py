@@ -137,12 +137,16 @@ def p_navegador() -> str:
     if not disp:
         raise RuntimeError("no hay Brave, Chrome ni Edge")
     r = navegador.abrir("https://example.com")
+    if "error" in r:
+        raise RuntimeError(r["error"])
     leido = navegador.leer(300)
     els = navegador.elementos(10)
-    navegador.cerrar_pestana(len(navegador.pestanas()["pestanas"]) - 1)
+    pest = navegador.pestanas().get("pestanas") or []
+    if pest:
+        navegador.cerrar_pestana(len(pest) - 1)
     if "Example" not in leido.get("titulo", "") + leido.get("texto", ""):
         raise RuntimeError(f"abrió pero no pudo leer la página ({leido})")
-    return f"{r['navegador']}: abre, lee y ve {len(els['elementos'])} elementos"
+    return f"{r['navegador']}: abre, lee y ve {len(els.get('elementos', []))} elementos"
 
 
 def p_windows_ui() -> str:

@@ -57,6 +57,10 @@ class LayConfig:
     actualizaciones: dict = field(default_factory=lambda: {"repo": "romocor/LAY"})
     navegador: str = "predeterminado"  # brave | chrome | edge | predeterminado (el primero instalado)
     camara_indice: int = 0
+    # Cámara bajo demanda + ajustes de rendimiento (resolución baja + modelo ligero = menos CPU/RAM)
+    camara: dict = field(
+        default_factory=lambda: {"al_inicio": False, "ancho": 640, "alto": 480, "fps": 30, "fps_reposo": 8}
+    )
     modo_mouse_por_defecto: bool = False
     gestos: dict = field(default_factory=dict)  # umbrales calibrados (loops.gestos --calibrar)
     # IA: "ollama" (local, gratis, por defecto) | "gemini" / "groq" (capa gratuita con clave) | "anthropic" (pago)

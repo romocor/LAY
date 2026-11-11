@@ -216,7 +216,51 @@ def manos_activar(carpeta: str | None = None) -> dict:
     """Activa el modo manos (tipo Tony Stark): escanea las palmas y abre el explorador holográfico
     de carpetas e imágenes que se maneja con gestos. carpeta: dónde empezar (por defecto Imágenes)."""
     inicio = archivos.resolver_carpeta(carpeta) if carpeta else None
+    bus.publicar("camara.encender")  # la cámara solo corre cuando se necesita
     return bus.publicar("manos.activar", carpeta=str(inicio) if inicio else None)
+
+
+@mcp.tool()
+def camara(accion: str = "encender") -> dict:
+    """Enciende o apaga la cámara de gestos ("LAY, activa la cámara" / "desactiva la cámara").
+    accion: encender | apagar. Apagada no gasta CPU ni RAM."""
+    accion = "apagar" if accion.lower().startswith(("apag", "desac", "off", "quit")) else "encender"
+    r = bus.publicar(f"camara.{accion}")
+    return {"ok": "error" not in r, "camara": accion == "encender", **({"error": r["error"]} if "error" in r else {})}
+
+
+@mcp.tool()
+def gesto_entrenar(orden: str, nombre: str | None = None) -> dict:
+    """Le enseña a LAY un gesto de mano nuevo: enciende la cámara, cuenta 2 s y graba la pose ~2 s.
+    orden: lo que hará el gesto, como una orden para LAY ("abre spotify", "pausa la música")
+    o un atajo de teclado ("ctrl+alt+t"). nombre: cómo se llama el gesto (opcional)."""
+    if not orden.strip():
+        return {"error": "Dime qué debe hacer el gesto, por ejemplo: abre Spotify."}
+    nombre = (nombre or orden).strip()[:40]
+    r = bus.publicar("gestos.entrenar", nombre=nombre, orden=orden.strip())
+    if "error" in r:
+        return r
+    return {
+        "ok": True,
+        "nombre": nombre,
+        "instruccion": "Pon la mano frente a la cámara y mantén el gesto quieto ~2 s.",
+    }
+
+
+@mcp.tool()
+def gestos_listar() -> dict:
+    """Lista los gestos de mano que Robert le enseñó a LAY y qué hace cada uno."""
+    from lay_core import gestos_propios
+
+    return gestos_propios.listar()
+
+
+@mcp.tool()
+def gesto_borrar(nombre: str) -> dict:
+    """Borra un gesto de mano personalizado por su nombre."""
+    from lay_core import gestos_propios
+
+    return gestos_propios.borrar(nombre)
 
 
 @mcp.tool()

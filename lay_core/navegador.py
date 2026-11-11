@@ -39,8 +39,29 @@ _hilo = ThreadPoolExecutor(max_workers=1, thread_name_prefix="lay-navegador")
 _estado: dict = {"pw": None, "browser": None, "nombre": None, "pagina": None}
 
 
-def _en_hilo(fn, *a, **k):
-    return _hilo.submit(fn, *a, **k).result(timeout=90)
+def _reiniciar_hilo() -> None:
+    """Si Playwright se colgó, se abandona ese hilo y se empieza limpio (si no, TODO lo siguiente fallaba)."""
+    global _hilo
+    _hilo.shutdown(wait=False, cancel_futures=True)
+    _hilo = ThreadPoolExecutor(max_workers=1, thread_name_prefix="lay-navegador")
+    _estado.update(pw=None, browser=None, pagina=None)
+
+
+def _en_hilo(fn, *a, **k) -> dict:
+    """Corre en el hilo del navegador y NUNCA lanza: siempre devuelve dict (con 'error' legible si falla)."""
+    from concurrent.futures import TimeoutError as Agotado
+
+    try:
+        return _hilo.submit(fn, *a, **k).result(timeout=40)
+    except Agotado:
+        _reiniciar_hilo()
+        return {"error": "El navegador no respondió a tiempo. Ya lo reinicié: vuelve a pedírmelo."}
+    except Exception as exc:  # noqa: BLE001 — se traduce a un mensaje para Robert
+        msg = str(exc).strip().splitlines()[0][:200] if str(exc).strip() else type(exc).__name__
+        if "Target page, context or browser has been closed" in msg or "has been closed" in msg:
+            _estado.update(browser=None, pagina=None)
+            msg = "La pestaña o el navegador se cerró. Pídeme abrirlo de nuevo."
+        return {"error": msg}
 
 
 # ---------------- localizar y lanzar ----------------
@@ -124,7 +145,9 @@ def _conectar(nombre: str | None):
             time.sleep(0.3)
     if _estado["pw"] is None:
         _estado["pw"] = sync_playwright().start()
-    _estado["browser"] = _estado["pw"].chromium.connect_over_cdp(f"http://127.0.0.1:{puerto}")
+    if not _puerto_abierto(puerto):
+        raise RuntimeError(f"{elegido.capitalize()} no abrió su puerto de control. Ciérralo y vuelve a intentar.")
+    _estado["browser"] = _estado["pw"].chromium.connect_over_cdp(f"http://127.0.0.1:{puerto}", timeout=10000)
     _estado["nombre"], _estado["pagina"] = elegido, None
     return _estado["browser"]
 
@@ -139,7 +162,21 @@ def _pagina(nueva: bool = False):
     actual = _estado.get("pagina")
     if nueva or actual is None or actual.is_closed() or actual.context is not ctx:
         abiertas = [p for p in ctx.pages if not p.is_closed()]
+        esperada = _estado.pop("url_esperada", None)
+        if esperada and not nueva:
+            # la pestaña la abrió el navegador recién lanzado: esperar a que Playwright la vea
+            from urllib.parse import urlparse
+
+            host, fin = urlparse(esperada).netloc.removeprefix("www."), time.time() + 6
+            while time.time() < fin and not any(host in p.url for p in abiertas):
+                time.sleep(0.25)
+                abiertas = [p for p in ctx.pages if not p.is_closed()]
+            abiertas = [p for p in abiertas if host in p.url] or abiertas
         _estado["pagina"] = ctx.new_page() if (nueva or not abiertas) else abiertas[-1]
+        try:
+            _estado["pagina"].wait_for_load_state("domcontentloaded", timeout=8000)
+        except Exception:  # noqa: BLE001 — una página lenta igual se puede leer a medias
+            pass
     _estado["pagina"].bring_to_front()
     return _estado["pagina"]
 
@@ -159,15 +196,42 @@ def a_url(t: str) -> str:
 
 
 # ---------------- acciones (todas corren en el hilo del navegador) ----------------
-def _abrir(destino: str, navegador: str | None, pestana_nueva: bool) -> dict:
-    _conectar(navegador)
-    p = _pagina(nueva=pestana_nueva)
-    p.goto(a_url(destino), wait_until="domcontentloaded", timeout=30000)
-    return {"ok": True, "navegador": _estado["nombre"], "titulo": p.title(), "url": p.url}
+def _lanzar(elegido: str, exe: str, url: str) -> None:
+    """Abre la URL en el perfil de LAY. Si ese navegador ya corre, Chrome/Brave/Edge la abren en una pestaña nueva."""
+    perfil = DATA_DIR / "navegador" / elegido
+    perfil.mkdir(parents=True, exist_ok=True)
+    subprocess.Popen(
+        [
+            exe,
+            f"--remote-debugging-port={PUERTOS[elegido]}",
+            f"--user-data-dir={perfil}",
+            "--no-first-run",
+            "--no-default-browser-check",
+            "--start-maximized",
+            url,
+        ],
+        creationflags=getattr(subprocess, "DETACHED_PROCESS", 0),
+    )
 
 
 def abrir(destino: str, navegador: str | None = None, pestana_nueva: bool = True) -> dict:
-    return _en_hilo(_abrir, destino, navegador, pestana_nueva)
+    """Abre una web o una búsqueda. NO depende de Playwright: lanza el navegador directo (instantáneo
+    y funciona aunque el control fino falle). Leer/clicar después sí usa Playwright."""
+    try:
+        elegido, exe = elegir_navegador(navegador or _estado["nombre"])
+    except RuntimeError as exc:
+        import webbrowser
+
+        url = a_url(destino or "google.com")
+        webbrowser.open(url)  # último recurso: el navegador predeterminado de Windows
+        return {"ok": True, "navegador": "predeterminado", "url": url, "nota": str(exc)}
+    url = a_url(destino or "google.com")
+    try:
+        _lanzar(elegido, exe, url)
+    except OSError as exc:
+        return {"error": f"No pude abrir {elegido}: {exc}"}
+    _estado.update(nombre=elegido, pagina=None, url_esperada=url)  # la pestaña nueva pasa a ser la actual
+    return {"ok": True, "navegador": elegido, "url": url}
 
 
 JS_ELEMENTOS = """(max) => {
@@ -299,7 +363,8 @@ def _buscar_en_pagina(consulta: str) -> dict:
             loc.first.press("Enter")
             p.wait_for_load_state("domcontentloaded", timeout=15000)
             return {"ok": True, "buscado_en": p.url, "titulo": p.title()}
-    return _abrir(consulta, None, False)
+    p.goto(a_url(consulta), wait_until="domcontentloaded", timeout=30000)  # sin buscador propio: Google
+    return {"ok": True, "buscado_en": p.url, "titulo": p.title()}
 
 
 def buscar_en_pagina(consulta: str) -> dict:

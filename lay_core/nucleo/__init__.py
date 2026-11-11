@@ -134,6 +134,13 @@ def extraer(intencion: str, original: str) -> dict:
         d["carpeta"] = _resto(t, "carpeta de|carpeta|mis|a mis|ve a|entra a|llevame a|al|en|abre")
     elif intencion in ("abrir_archivo", "buscar_archivo"):
         d["consulta"] = _resto(t, "abre|abreme|ver|muestrame|busca y abre|busca|encuentra|localiza|donde esta|tengo")
+    elif intencion == "camara":
+        apagar = re.search(r"\b(apag|desactiv|quit|cierr|paus|deja|ya no|fuera)", t)
+        d["accion"] = "apagar" if apagar else "encender"
+    elif intencion == "entrenar_gesto":
+        cortes = list(re.finditer(r"\b(?:para|que|gesto)\s+", t))  # lo que va tras el ÚLTIMO "para/que/gesto"
+        orden = t[cortes[-1].end() :] if cortes else ""
+        d["orden"] = re.sub(r"^(se|lay|me)\s+", "", orden).strip()
     elif intencion == "mostrar_imagenes":
         m = re.search(r"\b(?:de|del|de la)\s+(.+)$", t)
         d["consulta"] = (m.group(1) if m else "").replace("la obra de ", "").strip()
@@ -312,6 +319,11 @@ def plan(c: Comprension, usuario: str = "Robert") -> tuple[list[tuple[str, dict]
         "buscar_archivo": [("archivos_buscar", {"consulta": d.get("consulta", ""), "limite": 8})],
         "mostrar_imagenes": [("overlay_mostrar_imagenes", {"consulta": d["consulta"]} if d.get("consulta") else {})],
         "modo_manos": [("manos_activar", {})],
+        "camara": [("camara", {"accion": d.get("accion", "encender")})],
+        "entrenar_gesto": [("gesto_entrenar", {"nombre": d.get("orden", ""), "orden": d.get("orden", "")})]
+        if d.get("orden")
+        else [],
+        "gestos_listar": [("gestos_listar", {})],
         "buscar_web": [
             ("navegador_abrir", {"destino": d.get("consulta", ""), "navegador": d.get("navegador")}),
             ("web_buscar", {"consulta": d.get("consulta", ""), "maximo": 4}),
@@ -321,7 +333,11 @@ def plan(c: Comprension, usuario: str = "Robert") -> tuple[list[tuple[str, dict]
         "youtube": [
             (
                 "navegador_abrir",
-                {"destino": "youtube.com/results?search_query=" + "+".join(d.get("consulta", "").split())},
+                {
+                    "destino": "youtube.com/results?search_query=" + "+".join(d["consulta"].split())
+                    if d.get("consulta")
+                    else "youtube.com"  # "busca youtube" / "abre youtube" = la portada
+                },
             )
         ],
         "clima": [("clima", {"ciudad": d.get("ciudad")} if d.get("ciudad") else {})],
@@ -419,8 +435,24 @@ def responder(intencion: str, resultados: list[tuple[str, object]], datos: dict)
         return f"Te puse {r.get('imagenes', 'las')} imágenes en el holograma. Usa tus manos."
     if intencion == "modo_manos":
         return "Muéstrame las dos palmas a la cámara para escanearlas."
-    if intencion in ("abrir_web", "youtube"):
-        return f"Listo, abrí {r.get('titulo') or 'la página'}." if isinstance(r, dict) else "Listo."
+    if intencion == "camara":
+        if datos.get("accion") == "apagar":
+            return "Cámara apagada. Ya no te estoy viendo."
+        return "Cámara encendida. Muestra las dos palmas para abrir el explorador."
+    if intencion == "entrenar_gesto":
+        return f"Haz el gesto frente a la cámara y mantenlo quieto dos segundos. Lo usaré para {datos.get('orden', 'esa orden')}."
+    if intencion == "gestos_listar" and isinstance(r, dict):
+        g = r.get("gestos") or []
+        if not g:
+            return "Aún no me enseñaste gestos. Dime: entrena un gesto para abrir Spotify."
+        return f"Tienes {len(g)} gestos: " + ", ".join(x["nombre"] for x in g[:6]) + "."
+    if (
+        intencion in ("abrir_web", "youtube", "buscar_web")
+        and isinstance(r, dict)
+        and r.get("navegador")
+        and not r.get("resultados")
+    ):
+        return f"Listo, lo abrí en {r['navegador'].capitalize()}."
     if intencion == "recordatorio" and isinstance(r, dict):
         return f"Te recuerdo {r.get('mensaje', '')} el {r.get('cuando_texto', '')}."
     if intencion == "temporizador" and isinstance(r, dict):

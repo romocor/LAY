@@ -35,6 +35,7 @@ SECRETOS_PERMITIDOS = {
     "LAY_HUB_TOKEN",
 }
 CONFIG_PERMITIDA = {
+    "camara",
     "nombre",
     "usuario",
     "wake_words",
@@ -181,6 +182,38 @@ def registrar(app: FastAPI, difundir) -> None:
             return {"ok": False, "error": str(exc)}
         except Exception as exc:
             return {"ok": False, "error": f"{type(exc).__name__}: {exc}"[:200]}
+
+    # ---------- cámara y gestos propios ----------
+    @app.post("/api/camara")
+    async def camara_api(body: dict):
+        from loops import hub
+
+        tipo = "camara.apagar" if str(body.get("accion", "")).startswith("apag") else "camara.encender"
+        await hub.manejar_evento_overlay({"tipo": tipo})
+        return {"ok": True}
+
+    @app.get("/api/gestos")
+    async def gestos_api():
+        from lay_core import gestos_propios
+
+        return gestos_propios.listar()
+
+    @app.post("/api/gestos/entrenar")
+    async def gestos_entrenar(body: dict):
+        from loops import hub
+
+        orden = str(body.get("orden", "")).strip()[:200]
+        if not orden:
+            raise HTTPException(400, "Dime qué debe hacer el gesto.")
+        nombre = str(body.get("nombre") or orden).strip()[:40]
+        await hub.manejar_evento_overlay({"tipo": "gestos.entrenar", "nombre": nombre, "orden": orden})
+        return {"ok": True, "nombre": nombre}
+
+    @app.post("/api/gestos/borrar")
+    async def gestos_borrar(body: dict):
+        from lay_core import gestos_propios
+
+        return gestos_propios.borrar(str(body.get("nombre", "")))
 
     @app.post("/api/diagnostico")
     async def diagnostico_api(body: dict | None = None):

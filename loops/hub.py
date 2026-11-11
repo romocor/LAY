@@ -79,16 +79,64 @@ async def guardia(request: Request, call_next):
     return await call_next(request)
 
 
+# Cada cliente tiene su cola y su tarea de envío: un cliente lento (o uno que no lee) ya no traba
+# al resto. Si su cola se llena se descartan los mensajes más viejos (los cuadros de manos caducan rápido).
+colas: dict = {}
+filtros: dict = {}  # ws -> prefijos de "tipo" que quiere recibir (vacío = todo)
+COLA_MAX = 48
+
+
+async def _enviar_cola(ws: WebSocket, cola: asyncio.Queue) -> None:
+    try:
+        while True:
+            await ws.send_text(await cola.get())
+    except Exception:
+        clientes.discard(ws)
+
+
+def _registrar(ws: WebSocket, prefijos: str | None) -> asyncio.Task:
+    cola: asyncio.Queue = asyncio.Queue(maxsize=COLA_MAX)
+    colas[ws] = cola
+    filtros[ws] = tuple(p for p in (prefijos or "").split(",") if p)
+    clientes.add(ws)
+    if any(p.startswith("gestos") for p in filtros[ws]):
+        while _pendientes_gestos:  # la cámara acaba de conectarse: entrenar lo que se pidió
+            cola.put_nowait(json.dumps(_pendientes_gestos.pop(0), ensure_ascii=False))
+    return asyncio.create_task(_enviar_cola(ws, cola))
+
+
+def _olvidar(ws: WebSocket) -> None:
+    clientes.discard(ws)
+    remotos.discard(ws)
+    colas.pop(ws, None)
+    filtros.pop(ws, None)
+
+
 async def difundir(evento: dict) -> None:
     msg = json.dumps(evento, ensure_ascii=False)
-    muertos = []
-    for ws in clientes:
-        try:
-            await ws.send_text(msg)
-        except Exception:
-            muertos.append(ws)
-    for ws in muertos:
-        clientes.discard(ws)
+    tipo = str(evento.get("tipo", ""))
+    for ws in list(clientes):
+        f = filtros.get(ws)
+        if f and not tipo.startswith(f):
+            continue
+        cola = colas.get(ws)
+        if cola is None:  # cliente registrado a la antigua (tests)
+            try:
+                await ws.send_text(msg)
+            except Exception:
+                clientes.discard(ws)
+            continue
+        if tipo in ("manos", "hud.fps", "cursor") and cola.qsize() > 4:
+            continue  # cliente atrasado: se salta cuadros de manos, nunca eventos importantes
+        while True:
+            try:
+                cola.put_nowait(msg)
+                break
+            except asyncio.QueueFull:
+                try:
+                    cola.get_nowait()  # se pierde el más viejo, nunca se bloquea
+                except asyncio.QueueEmpty:
+                    break
 
 
 @app.websocket("/ws")
@@ -99,7 +147,7 @@ async def ws(ws: WebSocket):
         await ws.close(code=4403)
         return
     await ws.accept()
-    clientes.add(ws)
+    tarea = _registrar(ws, ws.query_params.get("tipos"))
     if remoto:
         remotos.add(ws)
     try:
@@ -116,8 +164,34 @@ async def ws(ws: WebSocket):
             except Exception as exc:  # un evento que falla (p. ej. abrir un archivo) no desconecta el HUD
                 await difundir({"tipo": "hud.error", "detalle": f"{type(exc).__name__}: {exc}"[:200]})
     except WebSocketDisconnect:
-        clientes.discard(ws)
-        remotos.discard(ws)
+        pass
+    finally:
+        tarea.cancel()
+        _olvidar(ws)
+
+
+# ---------- cámara bajo demanda: solo corre cuando Robert la pide ("LAY, activa la cámara") ----------
+_camara: dict = {"proc": None}
+_pendientes_gestos: list = []
+
+
+def camara(accion: str) -> dict:
+    from lay_core import procesos
+
+    p = _camara["proc"]
+    viva = p is not None and p.poll() is None
+    if accion == "estado":
+        return {"camara": viva}
+    if accion == "alternar":
+        accion = "apagar" if viva else "encender"
+    if accion == "encender":
+        if not viva:
+            _camara["proc"] = procesos.lanzar_rol("gestos")
+        return {"camara": True}
+    if viva:
+        p.terminate()
+    _camara["proc"] = None
+    return {"camara": False}
 
 
 async def manejar_evento_overlay(ev: dict) -> None:
@@ -136,12 +210,31 @@ async def manejar_evento_overlay(ev: dict) -> None:
         ev = {**ev, "monitor": monitor, "resultado": r}
     elif ev.get("tipo") == "overlay.abrir_archivo":
         await asyncio.to_thread(escritorio.abrir_seguro, ev["ruta"])  # nunca rutas prohibidas
+    elif ev.get("tipo") in ("camara.encender", "camara.apagar", "camara.alternar"):
+        ev = {**ev, **camara(ev["tipo"].split(".")[1])}
+        if not ev["camara"]:
+            await difundir({"tipo": "manos", "manos": {}})  # que no queden manos congeladas en pantalla
+        await difundir({"tipo": "hud.camara", "ok": ev["camara"], "pausada": not ev["camara"]})
+    elif ev.get("tipo") == "gestos.entrenar":
+        if not camara("estado")["camara"] or not any("gestos." in f for f in filtros.values() if f):
+            _pendientes_gestos.append(ev)  # se entrega cuando el proceso de la cámara se conecte
+            camara("encender")
+            await difundir({"tipo": "hud.camara", "ok": True, "pausada": False})
+            await difundir({**ev, "tipo": "gesto.entrenando", "fase": "encendiendo"})
+            return
+    elif ev.get("tipo") == "gesto.propio":
+        accion = ev.get("accion") or {}
+        if accion.get("tipo") == "orden" and accion.get("valor"):
+            await cola_comandos.put(str(accion["valor"])[:300])  # va por el mismo camino que la voz
     await difundir(ev)
 
 
 @app.post("/evento")
 async def evento(ev: dict):
-    await difundir(ev)
+    if str(ev.get("tipo", "")).startswith(("camara.", "gesto.propio", "gestos.entrenar")):
+        await manejar_evento_overlay(ev)
+    else:
+        await difundir(ev)
     return {"ok": True, "clientes": len(clientes)}
 
 
@@ -241,6 +334,11 @@ async def pagina_remota():
 @app.on_event("startup")
 async def _tareas_de_fondo():
     asyncio.create_task(_recordatorios())
+
+
+@app.on_event("shutdown")
+async def _apagar_camara():
+    camara("apagar")
 
 
 async def _recordatorios():

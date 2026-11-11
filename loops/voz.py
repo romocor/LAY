@@ -144,7 +144,9 @@ class Conversacion:
 
         while True:
             try:
-                with connect(f"ws://{CONFIG.hub_host}:{CONFIG.hub_port}/ws") as ws:
+                # solo lo que la voz usa: sin los 30 cuadros/s de manos
+                url = f"ws://{CONFIG.hub_host}:{CONFIG.hub_port}/ws?tipos=voz.,config.,gesto"
+                with connect(url) as ws:
                     for msg in ws:
                         ev = json.loads(msg)
                         if ev.get("tipo") == "voz.microfono":

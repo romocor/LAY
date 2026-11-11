@@ -22,6 +22,11 @@ import subprocess
 import sys
 import time
 
+# Ningún powershell/ollama/es.exe lanzado por LAY debe abrir una ventana de cmd encima de todo
+from lay_core.procesos import sin_consolas  # noqa: E402
+
+sin_consolas()
+
 # La consola de Windows usa cp1252: un "✓" o "ñ" en un print mataba el exe. UTF-8 y nunca reventar por un carácter.
 for _flujo in (sys.stdout, sys.stderr):
     try:
@@ -72,14 +77,9 @@ def ejecutar_rol(rol: str, resto: list[str]) -> None:
 
 
 def comando_rol(rol: str, *args: str) -> list[str]:
-    """Cómo relanzarse a sí mismo con otro rol, congelado o no."""
-    if getattr(sys, "frozen", False):
-        from pathlib import Path
+    from lay_core.procesos import comando_rol as _c
 
-        exe = Path(sys.executable)
-        cli = exe.with_name("LAY-cli.exe" if exe.suffix.lower() == ".exe" else "LAY-cli")
-        return [str(cli if cli.exists() else exe), "--rol", rol, *args]
-    return [sys.executable, __file__, "--rol", rol, *args]
+    return _c(rol, *args)
 
 
 def esperar_hub(url: str, seg: float = 15) -> bool:
@@ -129,22 +129,19 @@ def lanzador(a: argparse.Namespace) -> None:
     procs = [_popen(comando_rol("hub"))]
     if not esperar_hub(HUB_URL):
         raise SystemExit("El hub no arrancó. Revisa que el puerto 8765 esté libre.")
-    if not a.sin_camara:
-        procs.append(_popen(comando_rol("gestos")))
     procs.append(_popen(comando_rol("voz", *(["--texto"] if a.texto else []))))
     from lay_core import bandeja, bus
 
-    estado = {"camara": not a.sin_camara, "microfono": True, "gestos": procs[1] if not a.sin_camara else None}
+    # La cámara NO arranca sola (ahorra CPU/RAM): "LAY, activa la cámara" o la bandeja.
+    # Quien prefiera tenerla siempre: Configuración -> Manos -> "encender al iniciar".
+    camara_al_inicio = CONFIG.camara.get("al_inicio", False) and not a.sin_camara
+    if camara_al_inicio:
+        bus.publicar("camara.encender")
+    estado = {"camara": camara_al_inicio, "microfono": True}
 
     def alternar_camara():
-        if estado["camara"] and estado["gestos"]:
-            estado["gestos"].terminate()
-            estado["camara"] = False
-        else:
-            estado["gestos"] = _popen(comando_rol("gestos"))
-            procs.append(estado["gestos"])
-            estado["camara"] = True
-        bus.publicar("hud.camara", ok=estado["camara"], pausada=not estado["camara"])
+        bus.publicar("camara.alternar")
+        estado["camara"] = not estado["camara"]
 
     def alternar_microfono():
         estado["microfono"] = not estado["microfono"]
@@ -195,6 +192,10 @@ def lanzador(a: argparse.Namespace) -> None:
         while True:
             time.sleep(1)
     finally:
+        try:
+            bus.publicar("camara.apagar")  # la cámara la maneja el hub: apagarla antes de cerrarlo
+        except Exception:  # noqa: BLE001
+            pass
         for p in procs:
             p.terminate()
 

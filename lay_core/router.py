@@ -84,6 +84,10 @@ GRUPOS: dict[str, tuple[re.Pattern, set[str]]] = {
         re.compile(r"escrib|tecl|atajo|captura|copia|pega|guarda|dicta", re.I),
         {"teclado_escribir", "teclado_atajo", "pantalla_capturar"},
     ),
+    "manos": (
+        re.compile(r"c[aá]mara|gesto|mis manos|las manos|holo|tony|escane|explorador", re.I),
+        {"camara", "manos_activar", "gesto_entrenar", "gestos_listar", "gesto_borrar", "carpeta_abrir"},
+    ),
     "overlay": (
         re.compile(r"foto|imagen|im[aá]genes|galer|mu[eé]strame", re.I),
         {"overlay_mostrar_imagenes", "overlay_colocar", "hud_panel"},

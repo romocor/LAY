@@ -176,3 +176,42 @@ def test_aplauso_no_es_escaneo():
     frames = [(t / 10, resultado(("Left", mano(0.48)), ("Right", mano(0.52)))) for t in range(0, 20)]
     g, _ = correr(frames)
     assert "escaneo" not in g
+
+
+def test_gesto_propio_se_entrena_y_dispara_una_vez(tmp_path, monkeypatch):
+    from lay_core import gestos_propios as gp
+
+    monkeypatch.setattr(gp, "ARCHIVO", tmp_path / "g.json")
+    gp._cache.update(mtime=None, gestos=[])
+    g, c = [], None
+
+    def emitir(ev):
+        g.append(ev)
+
+    from loops.gestos import Clasificador
+
+    c = Clasificador(emitir)
+    c.entrenar("rock", "abre spotify", 0.0)
+    pose = resultado(("Right", mano(0.5)))
+    t = 0.0
+    while c.entrenando and t < 10:
+        t += 0.05
+        c.procesar(pose, t)
+    hecho = [e for e in g if e["tipo"] == "gesto.entrenado"]
+    assert hecho and hecho[0]["ok"] and hecho[0]["accion"] == {"tipo": "orden", "valor": "abre spotify"}
+    g.clear()
+    for k in range(1, 40):  # la misma pose sostenida ~2 s -> UNA sola orden
+        c.procesar(pose, t + k * 0.05)
+    disparos = [e for e in g if e["tipo"] == "gesto.propio"]
+    assert len(disparos) == 1 and disparos[0]["nombre"] == "rock"
+
+
+def test_sin_manos_solo_avisa_una_vez():
+    g = []
+    from loops.gestos import Clasificador
+
+    c = Clasificador(g.append)
+    vacio = resultado()
+    for k in range(10):
+        c.procesar(vacio, k * 0.03)
+    assert sum(1 for e in g if e["tipo"] == "manos") == 1

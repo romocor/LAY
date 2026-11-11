@@ -125,6 +125,18 @@ Cada fase se ejecuta con `/fase N` (loop planificar → implementar → verifica
 - [x] Investigado en GitHub (isair/jarvis, GauravSingh9356/J.A.R.V.I.S, clawdcursor, AnubhavChaturvedi): web gratis (DuckDuckGo + Wikipedia), clima (Open-Meteo), recordatorios/alarmas/temporizadores con voz y notificación, memoria de largo plazo con bloqueo de secretos.
 - [ ] Próximas ideas de GitHub: dictado con tecla (offline, pegar en cualquier app), leer la pantalla con OCR de Windows, visión con cámara (modelo local multimodal), WhatsApp Web, Home Assistant.
 
+## v2.8.0 — Rendimiento, cámara bajo demanda, gestos entrenables, navegador fiable
+- [x] Navegador: abrir una web o búsqueda ya no depende de Playwright (lanza Brave/Chrome directo, instantáneo). Playwright solo para leer/clicar, con tiempo límite, auto-reinicio si se cuelga y errores legibles (antes: "ToolError" vacío).
+- [x] "busca youtube" abre YouTube; "busca en youtube X" busca X.
+- [x] Cámara SOLO cuando se pide: "LAY, activa/desactiva la cámara", Configuración → Manos, o la bandeja. Opción "encender al abrir LAY".
+- [x] Manos que se quedaban congeladas en pantalla: vigilante en el HUD + aviso al apagar la cámara.
+- [x] Rendimiento cámara: 640x480 MJPG, hilo lector (siempre el cuadro más nuevo), modelo ligero, ~8 fps en reposo sin manos, datos de manos redondeados y sin repetir vacíos.
+- [x] Rendimiento hub: cola por cliente (un cliente lento ya no traba a todos) y suscripción por tipo (gestos y voz ya no reciben 30 cuadros/s de manos). Era la causa de los tirones.
+- [x] Rendimiento HUD: sin drop-shadow animado, sombras livianas, manos dibujadas una vez por cuadro, animaciones en pausa al explorar o minimizar, explorador paginado (22 por página), miniaturas más chicas.
+- [x] Sin ventanas de cmd: todo subprocess de LAY nace oculto (powershell, ollama, Everything…).
+- [x] Ollama en modo ahorro: 1 conversación en paralelo, 1 modelo, se libera de la RAM a los 3 min sin uso.
+- [x] Gestos entrenables: "LAY, entrena un gesto para abrir Spotify" o Configuración → Manos → Grabar. Acción = orden para LAY o atajo de teclado. Vecino más cercano sobre puntos normalizados (idea de Kazuhito00/hand-gesture-recognition-using-mediapipe), sin TensorFlow.
+
 ## v2.7.0 — LAY Núcleo (IA desde cero) + manos tipo Tony Stark + diagnóstico real
 - [x] LAY Núcleo: IA propia hecha desde cero (numpy, sin Ollama ni internet). 38 intenciones, 8360 frases de entrenamiento, 100 % en frases nuevas escritas a mano. Extrae datos (app, carpeta, volumen, ciudad, hora…), planea herramientas y responde con los resultados reales.
 - [x] Modo híbrido (por defecto): órdenes → Núcleo al instante; charla → la IA elegida. Si Ollama se cae, el Núcleo responde igual (último respaldo gratis).

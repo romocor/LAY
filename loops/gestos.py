@@ -19,6 +19,11 @@ Vocabulario (igual a la referencia + extras):
   DOS PALMAS 1,2 s         -> escaneo tipo Tony Stark: abre el explorador holográfico
   PUÑO 0,7 s               -> callar a LAY si está hablando
   PUÑO 2 s                 -> pausar / reanudar seguimiento
+  GESTOS PROPIOS           -> los que Robert le enseña ("entrena un gesto para abrir Spotify")
+
+Rendimiento: la cámara solo corre cuando se pide; 640x480 en MJPG con un hilo lector que
+siempre entrega el cuadro más nuevo; modelo ligero (complejidad 0); sin manos a la vista
+baja a ~8 fps; y las manos se envían redondeadas y solo cuando cambian.
 """
 
 from __future__ import annotations
@@ -35,13 +40,14 @@ import cv2
 import mediapipe as mp
 from websockets.sync.client import connect
 
+from lay_core import gestos_propios
 from lay_core.config import CONFIG
 
 PUNTA = {"pulgar": 4, "indice": 8, "medio": 12, "anular": 16, "menique": 20}
 BASE = {"indice": 5, "medio": 9, "anular": 13, "menique": 17}
 
 # Umbrales por defecto; `--calibrar` los ajusta a tu mano y cámara (lay.json -> "gestos")
-_G = {"pinch_on": 0.33, "pinch_off": 0.45, "swipe_vel": 2.2, "complejidad": 1, **getattr(CONFIG, "gestos", {})}
+_G = {"pinch_on": 0.33, "pinch_off": 0.45, "swipe_vel": 2.2, "complejidad": 0, **getattr(CONFIG, "gestos", {})}
 ESCANEO_SEG = 1.2
 PINCH_ON, PINCH_OFF = _G["pinch_on"], _G["pinch_off"]  # histéresis, relativo al tamaño de la mano
 SWIPE_VEL = _G["swipe_vel"]
@@ -110,6 +116,11 @@ class Clasificador:
         self.pct_escaneo = -1
         self.modo_mouse = CONFIG.modo_mouse_por_defecto
         self.pausado = False
+        self.vacio_enviado = False
+        self.entrenando: dict | None = None  # gesto propio que se está grabando
+        self.propio: dict = {}  # lado -> (nombre, desde cuándo se sostiene)
+        self.t_propio_fin = -10.0
+        self.hay_propios, self.t_revision = False, -10.0
 
     # --- utilidades de pose ---
     @staticmethod
@@ -140,8 +151,17 @@ class Clasificador:
             for lm, hd in zip(resultados.multi_hand_landmarks, resultados.multi_handedness):
                 vistas[hd.classification[0].label] = lm.landmark
 
-        self.emitir({"tipo": "manos", "manos": {k: [[p.x, p.y, p.z] for p in v] for k, v in vistas.items()}})
+        if vistas or not self.vacio_enviado:  # sin manos: un solo aviso, no 30 por segundo
+            self.emitir(
+                {"tipo": "manos", "manos": {k: [[round(p.x, 3), round(p.y, 3)] for p in v] for k, v in vistas.items()}}
+            )
+        self.vacio_enviado = not vistas
 
+        if self.entrenando:
+            self._entrenar(vistas, t)
+            return  # mientras graba un gesto nuevo no se dispara ningún otro
+        if vistas:
+            self._propios(vistas, t)
         self._escaneo(vistas, t)
         for lado, lm in vistas.items():
             self._mano(lado, lm, t)
@@ -153,6 +173,63 @@ class Clasificador:
             self._dos_manos(vistas["Left"], vistas["Right"], t)
         else:
             self.dist_dos_manos = None
+
+    # --- gestos que Robert le enseña a LAY ---
+    def entrenar(self, nombre: str, orden: str, t: float) -> None:
+        self.entrenando = {"nombre": nombre, "orden": orden, "t0": t, "muestras": [], "aviso": -1, "pct": -1}
+        self.emitir({"tipo": "gesto.entrenando", "fase": "preparar", "nombre": nombre, "pct": 0})
+
+    def _entrenar(self, vistas: dict, t: float) -> None:
+        e = self.entrenando
+        dt = t - e["t0"]
+        if dt < 2.0:  # 2 s para poner la mano
+            seg = 2 - int(dt)
+            if seg != e["aviso"]:
+                e["aviso"] = seg
+                self.emitir({"tipo": "gesto.entrenando", "fase": "preparar", "nombre": e["nombre"], "seg": seg})
+            return
+        if vistas:
+            lado, lm = next(iter(vistas.items()))
+            e["muestras"].append(gestos_propios.vector([(p.x, p.y) for p in lm], lado))
+        pct = min(100, int(len(e["muestras"]) / 40 * 100))
+        if pct // 20 != e["pct"] // 20:
+            e["pct"] = pct
+            self.emitir({"tipo": "gesto.entrenando", "fase": "grabando", "nombre": e["nombre"], "pct": pct})
+        if len(e["muestras"]) >= 40 or dt > 7:
+            r = gestos_propios.guardar(e["nombre"], e["orden"], e["muestras"])
+            self.emitir({"tipo": "gesto.entrenado", **r})
+            self.entrenando, self.t_revision = None, -10.0
+
+    def _propios(self, vistas: dict, t: float) -> None:
+        if t - self.t_revision > 2:  # ¿hay gestos guardados? (se revisa cada 2 s, no en cada cuadro)
+            self.hay_propios, self.t_revision = bool(gestos_propios.listar()["gestos"]), t
+        if not self.hay_propios or any(e.pinch for e in self.manos.values()):
+            return
+        for lado, lm in vistas.items():
+            g, _ = gestos_propios.reconocer(gestos_propios.vector([(p.x, p.y) for p in lm], lado))
+            previo = self.propio.get(lado)
+            if g is None:
+                self.propio.pop(lado, None)
+                continue
+            if previo is None or previo[0] != g["nombre"]:
+                self.propio[lado] = (g["nombre"], t)
+                continue
+            em = self.manos[lado]
+            em.t_palma = em.t_puno = None  # el gesto propio gana a palma/puño si se parecen
+            if t - previo[1] >= 0.7 and t - self.t_propio_fin > 2.5:
+                self.t_propio_fin = t
+                self.propio.pop(lado, None)
+                self.emitir({"tipo": "gesto.propio", "nombre": g["nombre"], "accion": g["accion"]})
+                if g["accion"]["tipo"] == "teclas":
+                    self._atajo(g["accion"]["valor"])
+
+    @staticmethod
+    def _atajo(combo: str) -> None:
+        import pyautogui
+
+        alias = {"control": "ctrl", "mayus": "shift", "tecla": "", "windows": "win"}
+        teclas = [alias.get(k, k) for k in combo.lower().split("+") if alias.get(k, k)]
+        pyautogui.hotkey(*teclas, _pause=False)
 
     @classmethod
     def palma_abierta(cls, lm) -> bool:
@@ -403,19 +480,74 @@ class Clasificador:
 
 
 class Emisor:
-    """WebSocket persistente al hub, con reconexión. Descarta frames si el hub cae."""
+    """WebSocket persistente al hub. Solo RECIBE los eventos "gestos.*" (entrenar) y los lee en
+    un hilo: antes el hub le reenviaba todo, nadie lo leía, el búfer se llenaba y el HUD daba tirones."""
 
-    def __init__(self, url: str) -> None:
-        self.url, self.ws, self.lock = url, None, threading.Lock()
+    def __init__(self, url: str, al_recibir=None) -> None:
+        self.url, self.ws, self.lock = url + "?tipos=gestos.", None, threading.Lock()
+        self.al_recibir = al_recibir
+        self.t_ok = time.monotonic()
+
+    def _leer(self, ws) -> None:
+        try:
+            for msg in ws:
+                try:
+                    ev = json.loads(msg)
+                except ValueError:
+                    continue
+                if self.al_recibir:
+                    self.al_recibir(ev)
+        except Exception:
+            pass
 
     def __call__(self, ev: dict) -> None:
         with self.lock:
             try:
                 if self.ws is None:
                     self.ws = connect(self.url, open_timeout=1)
-                self.ws.send(json.dumps(ev))
+                    threading.Thread(target=self._leer, args=(self.ws,), daemon=True).start()
+                self.ws.send(json.dumps(ev, separators=(",", ":")))
+                self.t_ok = time.monotonic()
             except Exception:
                 self.ws = None
+
+
+class Camara:
+    """Lee la cámara en su propio hilo y guarda SOLO el último cuadro: el procesamiento nunca
+    trabaja con imágenes viejas acumuladas en el búfer (eso era el retraso y los tirones)."""
+
+    def __init__(self) -> None:
+        self.cap = abrir_camara()
+        self.cuadro, self.n, self.vivo = None, 0, True
+        self.cond = threading.Condition()
+        threading.Thread(target=self._bucle, daemon=True).start()
+
+    def _bucle(self) -> None:
+        fallos = 0
+        while self.vivo:
+            ok, f = self.cap.read()
+            if not ok:
+                fallos += 1
+                if fallos > 60:
+                    self.cap.release()
+                    time.sleep(2)
+                    self.cap, fallos = abrir_camara(), 0
+                time.sleep(0.03)
+                continue
+            fallos = 0
+            with self.cond:
+                self.cuadro, self.n = f, self.n + 1
+                self.cond.notify()
+
+    def leer(self, ultimo: int, espera: float = 1.0):
+        with self.cond:
+            self.cond.wait_for(lambda: self.n != ultimo, timeout=espera)
+            return self.n, self.cuadro
+
+    def cerrar(self) -> None:
+        self.vivo = False
+        time.sleep(0.05)
+        self.cap.release()
 
 
 def main() -> None:
@@ -431,42 +563,48 @@ def main() -> None:
     if a.calibrar:
         return calibrar()
 
-    emitir = Emisor(f"ws://{CONFIG.hub_host}:{CONFIG.hub_port}/ws")
+    clf: Clasificador | None = None
+
+    def al_recibir(ev: dict) -> None:
+        if ev.get("tipo") == "gestos.entrenar" and clf is not None:
+            clf.entrenar(str(ev.get("nombre") or ev.get("orden") or "gesto"), str(ev.get("orden", "")), time.time())
+
+    emitir = Emisor(f"ws://{CONFIG.hub_host}:{CONFIG.hub_port}/ws", al_recibir)
     clf = Clasificador(emitir)
     clf.modo_mouse = a.mouse or clf.modo_mouse
 
-    cap = abrir_camara()
+    cam = Camara()
     hands = mp.solutions.hands.Hands(
         max_num_hands=2,
         model_complexity=int(_G["complejidad"]),
         min_detection_confidence=0.6,
-        min_tracking_confidence=0.6,
+        min_tracking_confidence=0.5,
     )
     dibujar = mp.solutions.drawing_utils
+    fps_reposo = float(CONFIG.camara.get("fps_reposo", 8))
     print("LAY gestos activo. Palma abierta 1,5 s = cambiar modo. Puño 1 s = pausa. Ctrl+C para salir.")
-    fallos, cuadros, t_fps = 0, 0, time.monotonic()
+    emitir({"tipo": "hud.camara", "ok": True})
+    n, cuadros, t_fps, t_mano = 0, 0, time.monotonic(), time.monotonic()
     try:
         while True:
-            ok, frame = cap.read()
-            if not ok:
-                fallos += 1
-                if fallos > 60:  # ~3 s sin imagen: cámara desconectada o tomada por otra app
-                    emitir({"tipo": "hud.camara", "ok": False})
-                    cap.release()
-                    time.sleep(2)
-                    cap, fallos = abrir_camara(), 0
-                time.sleep(0.05)
+            ahora = time.monotonic()
+            if ahora - emitir.t_ok > 20:
+                break  # el hub (LAY) se cerró: esta cámara no debe quedarse prendida sola
+            reposo = ahora - t_mano > 3 and not clf.entrenando
+            n2, frame = cam.leer(n)
+            if frame is None or n2 == n:
+                emitir({"tipo": "hud.camara", "ok": False})
                 continue
-            if fallos:
-                emitir({"tipo": "hud.camara", "ok": True})
-            fallos = 0
+            n = n2
             # Espejo ANTES de MediaPipe: su lateralidad (Left/Right) asume imagen tipo selfie.
             frame = cv2.flip(frame, 1)
             res = hands.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+            if res.multi_hand_landmarks:
+                t_mano = time.monotonic()
             clf.procesar(res, time.time())
             cuadros += 1
             if time.monotonic() - t_fps >= 1:
-                emitir({"tipo": "hud.fps", "fps": cuadros})
+                emitir({"tipo": "hud.fps", "fps": cuadros, "reposo": reposo})
                 cuadros, t_fps = 0, time.monotonic()
             if a.debug:
                 if res.multi_hand_landmarks:
@@ -475,15 +613,23 @@ def main() -> None:
                 cv2.imshow("LAY gestos (debug)", frame)
                 if cv2.waitKey(1) & 0xFF == 27:
                     break
+            if reposo:  # nadie a la vista: ~8 fps bastan para notar una mano que aparece
+                time.sleep(max(0.0, 1 / fps_reposo - (time.monotonic() - ahora)))
     finally:
-        cap.release()
+        cam.cerrar()
+        hands.close()
         cv2.destroyAllWindows()
 
 
 def abrir_camara():
+    """640x480 en MJPG: las webcams USB dan 30 fps así; en YUY2 a más resolución caen a 10-15."""
+    cfg = CONFIG.camara
     cap = cv2.VideoCapture(CONFIG.camara_indice, cv2.CAP_DSHOW if hasattr(cv2, "CAP_DSHOW") else 0)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 960)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 540)
+    cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, int(cfg.get("ancho", 640)))
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, int(cfg.get("alto", 480)))
+    cap.set(cv2.CAP_PROP_FPS, int(cfg.get("fps", 30)))
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
     return cap
 
 

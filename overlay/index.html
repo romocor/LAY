@@ -17,7 +17,8 @@ body:after{content:"";position:fixed;inset:0;pointer-events:none;opacity:.12;bac
 .status{color:var(--cyan);text-shadow:0 0 10px var(--cyan)}
 .opus{color:var(--violet);text-shadow:0 0 10px var(--violet)}
 /* núcleo */
-.core{position:fixed;left:50%;top:50%;width:min(46vmin,460px);aspect-ratio:1;transform:translate(-50%,-50%);display:grid;place-items:center;filter:drop-shadow(0 0 22px rgba(25,204,235,.22));transition:filter .4s}
+.core{position:fixed;left:50%;top:50%;width:min(46vmin,460px);aspect-ratio:1;transform:translate(-50%,-50%);display:grid;place-items:center}
+.core:before{content:"";position:absolute;inset:-12%;border-radius:50%;background:radial-gradient(circle,rgba(25,204,235,.16),transparent 62%);opacity:.6;transition:opacity .4s}
 .ring{position:absolute;border-radius:50%}
 .r1{inset:0;border:2px solid rgba(91,231,248,.7);animation:breathe 4s ease-in-out infinite}
 .r1:before{content:"";position:absolute;inset:12px;border-radius:50%;border:1px dashed rgba(104,236,255,.6);animation:spin 42s linear infinite}
@@ -28,10 +29,10 @@ body:after{content:"";position:fixed;inset:0;pointer-events:none;opacity:.12;bac
 .center{position:relative;width:48%;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;text-align:center;background:radial-gradient(circle at 50% 45%,rgba(18,87,111,.55),rgba(2,12,20,.96) 68%);border:1px solid rgba(135,245,255,.35)}
 .brand{font-size:clamp(28px,5vmin,54px);font-weight:800;letter-spacing:.16em;color:#e9ffff;text-shadow:0 0 8px #fff,0 0 22px #55eaff,0 0 42px #19b8e8}
 .sub{position:absolute;bottom:22%;font:9px Consolas,monospace;letter-spacing:3px;color:#62dff3}
-body.escuchando .core{filter:drop-shadow(0 0 40px rgba(101,244,255,.7))}
+body.escuchando .core:before{opacity:1}
 body.pensando .r2{animation-duration:2.5s}body.pensando .arc{animation-duration:1.6s}
 body.hablando .r3{animation:talk .35s ease-in-out infinite alternate}
-body.abierto .core{filter:drop-shadow(0 0 30px rgba(101,244,255,.45))}body.abierto .r1{border-color:#e2ffff}
+body.abierto .core:before{opacity:.85}body.abierto .r1{border-color:#e2ffff}
 body.opus .r2{border-top-color:var(--violet);border-bottom-color:#d6c2ff}
 /* transcripción */
 #dialogo{position:fixed;left:50%;bottom:9%;transform:translateX(-50%);width:min(760px,86vw);text-align:center;font-size:15px;line-height:1.5;z-index:6}
@@ -39,12 +40,12 @@ body.opus .r2{border-top-color:var(--violet);border-bottom-color:#d6c2ff}
 #dialogo .lay{color:#e9ffff;text-shadow:0 0 12px rgba(101,244,255,.5)}
 /* tarjetas */
 #mesa{position:fixed;inset:0;perspective:1400px;z-index:3}
-.card{position:absolute;left:0;top:0;width:220px;height:150px;border-radius:10px;overflow:hidden;border:1px solid rgba(120,240,255,.55);box-shadow:0 0 22px rgba(38,216,247,.35),inset 0 0 18px rgba(38,216,247,.2);background:#031722;transform-origin:center;will-change:transform;transition:box-shadow .2s,opacity .3s}
+.card{position:absolute;left:0;top:0;width:220px;height:150px;border-radius:10px;overflow:hidden;border:1px solid rgba(120,240,255,.55);box-shadow:0 0 10px rgba(38,216,247,.3);background:#031722;transform-origin:center;contain:layout paint;transition:opacity .3s}
 .card img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
 .card:after{content:attr(data-nombre);position:absolute;left:0;right:0;bottom:0;padding:4px 8px;font:9px Consolas,monospace;letter-spacing:1px;color:#aaf8ff;background:linear-gradient(transparent,rgba(2,12,20,.9))}
-.card.hover{box-shadow:0 0 30px rgba(101,244,255,.8),inset 0 0 22px rgba(101,244,255,.35)}
-.card.agarrada{box-shadow:0 0 40px #e2ffff;border-color:#e2ffff;z-index:20}
-.card.abierta{z-index:15}
+.card.hover{box-shadow:0 0 18px rgba(101,244,255,.8);border-color:#e2ffff}
+.card.agarrada{will-change:transform;box-shadow:0 0 24px #e2ffff;border-color:#e2ffff;z-index:20}
+.card.abierta{z-index:15;will-change:transform}
 .card.lanzada{opacity:0}
 /* manos */
 #manos{position:fixed;inset:0;z-index:8;pointer-events:none}
@@ -61,7 +62,7 @@ body.opus .r2{border-top-color:var(--violet);border-bottom-color:#d6c2ff}
 #ayuda{position:fixed;left:50%;top:62px;transform:translateX(-50%);width:min(860px,70vw);padding:6px 14px;background:rgba(2,16,24,.85);border:1px solid rgba(101,244,255,.25);text-align:center;font:9px/1.7 Consolas,monospace;letter-spacing:1px;color:rgba(133,227,243,.6);z-index:5;transition:opacity .8s}
 #ayuda.oculta{opacity:0;pointer-events:none}
 @keyframes spin{to{transform:rotate(360deg)}}
-@keyframes breathe{0%,100%{opacity:.75}50%{opacity:1;filter:brightness(1.5)}}
+@keyframes breathe{0%,100%{opacity:.7}50%{opacity:1}}
 @keyframes talk{from{transform:scale(.96)}to{transform:scale(1.06)}}
 
 /* ---------- Configuración ---------- */
@@ -100,17 +101,21 @@ body.opus .r2{border-top-color:var(--violet);border-bottom-color:#d6c2ff}
 /* explorador holográfico + escaneo de manos */
 .card{pointer-events:auto;cursor:pointer}
 .card.carpeta,.card.atras,.card.cerrar{display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 40%,rgba(38,216,247,.22),#031722 70%)}
-.card .ico{width:76px;height:54px;position:relative;border:2px solid var(--cyan);border-radius:4px 8px 8px 8px;box-shadow:0 0 18px rgba(38,216,247,.6),inset 0 0 14px rgba(38,216,247,.35);margin-bottom:22px}
+.card .ico{width:76px;height:54px;position:relative;border:2px solid var(--cyan);border-radius:4px 8px 8px 8px;box-shadow:0 0 10px rgba(38,216,247,.5);margin-bottom:22px}
 .card .ico:before{content:"";position:absolute;left:-2px;top:-12px;width:32px;height:10px;border:2px solid var(--cyan);border-bottom:0;border-radius:4px 8px 0 0}
 .card .ico:after{content:"";position:absolute;inset:8px;background:repeating-linear-gradient(0deg,rgba(101,244,255,.25) 0 1px,transparent 1px 6px)}
 .card.atras .ico,.card.cerrar .ico{display:none}
 .card.atras .big,.card.cerrar .big{font:34px Consolas,monospace;color:var(--cyan);text-shadow:0 0 14px var(--cyan);margin-bottom:18px}
 .card.entrando{animation:entrar .45s cubic-bezier(.2,.8,.2,1) both}
-@keyframes entrar{from{opacity:0;filter:blur(6px) brightness(2)}to{opacity:1;filter:none}}
+@keyframes entrar{from{opacity:0}to{opacity:1}}
 #ruta{position:fixed;top:64px;left:50%;transform:translateX(-50%);font:11px Consolas,monospace;letter-spacing:3px;color:var(--cyan);text-shadow:0 0 10px var(--cyan);z-index:6;display:none;max-width:70vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 body.explorando #ruta{display:block}
 body.explorando #ayuda,body.escaneando #ayuda{opacity:0;pointer-events:none}
 body.explorando .core{opacity:.25;transition:opacity .5s}
+body.explorando .core *,body.explorando .core:before,body.oculto *,body.oculto *:before{animation-play-state:paused!important}
+#entreno{position:fixed;left:50%;top:30%;transform:translateX(-50%);z-index:13;text-align:center;font:12px Consolas,monospace;letter-spacing:4px;color:#e2ffff;text-shadow:0 0 12px var(--cyan);display:none}
+#entreno.on{display:block}#entreno .n{font-size:64px;margin:10px 0}#entreno .b{height:4px;width:320px;background:rgba(101,244,255,.15);margin:8px auto}#entreno .b i{display:block;height:100%;width:0;background:var(--cyan);box-shadow:0 0 10px var(--cyan);transition:width .2s}
+.gl{display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border:1px solid rgba(101,244,255,.2);margin:4px 0;font-size:12px}.gl b{color:#e2ffff}.gl button{background:none;border:1px solid rgba(255,120,120,.5);color:#ff9b9b;cursor:pointer;padding:2px 8px}
 #escaneo{position:fixed;inset:0;z-index:12;pointer-events:none;opacity:0;transition:opacity .25s}
 #escaneo.on{opacity:1}
 #escaneo:before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(101,244,255,.06) 0 1px,transparent 1px 4px)}
@@ -139,6 +144,7 @@ body.explorando .core{opacity:.25;transition:opacity .5s}
 <div id="dialogo"><div class="yo" id="yo"></div><div class="lay" id="lay">Di "LAY" para hablarme.</div></div>
 <div id="toast"></div>
 <div id="ruta"></div>
+<div id="entreno"><div id="entTxt">PREPARA TU MANO</div><div class="n" id="entN">2</div><div class="b"><i id="entBar"></i></div><div id="entSub"></div></div>
 <div id="escaneo"><div class="barra"></div><div class="anillo" id="anL"></div><div class="anillo" id="anR"></div>
   <div class="txt"><div id="escTxt">ESCANEANDO BIOMETRÍA</div><div class="pct" id="escPct">0 %</div></div></div>
 
@@ -148,7 +154,7 @@ body.explorando .core{opacity:.25;transition:opacity .5s}
  <nav><h2>CONFIGURACIÓN</h2>
   <button data-tab="ia" class="act">🧠 Inteligencia</button><button data-tab="universidad">🎓 Universidad</button>
   <button data-tab="correo">✉ Correo</button><button data-tab="palmadas">👏 Palmadas</button>
-  <button data-tab="voz">🎙 Voz y cámara</button><button data-tab="remoto">📱 Remoto</button>
+  <button data-tab="manos">🖐 Manos y gestos</button><button data-tab="voz">🎙 Voz y cámara</button><button data-tab="remoto">📱 Remoto</button>
   <div class="pie" id="cfgVersion"></div></nav>
  <div style="overflow:hidden;display:flex">
  <section data-sec="ia" class="act" style="flex:1"><h3>Inteligencia</h3><p class="sub">Elige qué IA responde. La local es gratis, privada y funciona sin internet.</p>
@@ -180,6 +186,14 @@ body.explorando .core{opacity:.25;transition:opacity .5s}
   <div class="sub">Baja si se activa sola con ruidos; sube si no te detecta desde lejos.</div>
   <label>Triple palmada</label><select id="apTriple"></select>
   <button class="btn" id="guardarAp">Guardar</button><div class="res" id="resAp"></div>
+ </section>
+ <section data-sec="manos" style="flex:1"><h3>Manos y gestos</h3><p class="sub">La cámara solo se enciende cuando la pides ("LAY, activa la cámara"). Apagada no gasta CPU ni RAM.</p>
+  <div class="fila"><button class="btn" id="camOn">Encender cámara</button><button class="btn sec" id="camOff">Apagar cámara</button></div>
+  <label class="interruptor"><input type="checkbox" id="camInicio"> Encender la cámara al abrir LAY</label>
+  <h3 style="margin-top:18px">Enséñale un gesto</h3><p class="sub">Pon la mano frente a la cámara, haz la pose y mantenla quieta ~2 s. También por voz: "LAY, entrena un gesto para abrir Spotify".</p>
+  <div class="fila"><div><label>¿Qué hace?</label><input type="text" id="gOrden" placeholder="abre spotify · pausa la música · ctrl+alt+t"></div><div><label>Nombre (opcional)</label><input type="text" id="gNombre" placeholder="rock"></div></div>
+  <button class="btn" id="gGrabar">● Grabar gesto</button><div class="res" id="resG"></div>
+  <div id="gLista"></div>
  </section>
  <section data-sec="voz" style="flex:1"><h3>Voz y cámara</h3><p class="sub">Cómo te escucha y te habla LAY.</p>
   <label>Tu nombre</label><input type="text" id="usuario">
@@ -213,12 +227,12 @@ let agarrada=null,abierta=null,rotando=null,ultimaActiva=null;
 function cargar(rutas){cargarItems(rutas.map(r=>({tipo:'imagen',ruta:r})));if(!explorador.activo)toast(`${cards.length} IMÁGENES CARGADAS`)}
 function cargarItems(items){
   mesa.innerHTML='';cards.length=0;abierta=null;agarrada=null;
-  items.slice(0,48).forEach((it,i)=>{
+  items.slice(0,30).forEach((it,i)=>{
     const el=document.createElement('div');el.className='card '+it.tipo+' entrando';el.style.animationDelay=(i*18)+'ms';
     const nombre=it.nombre||it.ruta.split(/[\\/]/).pop();el.dataset.nombre=nombre.toUpperCase();
-    if(it.tipo==='imagen')el.innerHTML=`<img loading="lazy" src="/miniatura?ruta=${encodeURIComponent(it.ruta)}&w=480">`;
+    if(it.tipo==='imagen')el.innerHTML=`<img loading="lazy" src="/miniatura?ruta=${encodeURIComponent(it.ruta)}&w=320" decoding="async">`;
     else if(it.tipo==='carpeta')el.innerHTML='<div class="ico"></div>';
-    else el.innerHTML=`<div class="big">${it.tipo==='atras'?'◀':'✕'}</div>`;
+    else el.innerHTML=`<div class="big">${it.tipo==='atras'?'◀':it.tipo==='mas'?'▶':'✕'}</div>`;
     mesa.appendChild(el);
     const c={el,ruta:it.ruta,tipo:it.tipo,x:0,y:0,s:1,ry:0,abierta:false};el._card=c;cards.push(c);
   });
@@ -272,19 +286,37 @@ async function explorar(ruta){
   explorador.activo=true;explorador.ruta=r.ruta;document.body.classList.add('explorando');
   const items=[];
   if(r.padre)items.push({tipo:'atras',ruta:r.padre,nombre:'ATRÁS · '+r.padre.split(/[\\/]/).filter(Boolean).pop()});
-  r.carpetas.slice(0,20).forEach(c=>items.push({tipo:'carpeta',ruta:c.ruta,nombre:c.nombre}));
-  r.imagenes.forEach(x=>items.push({tipo:'imagen',ruta:x}));
-  items.push({tipo:'cerrar',ruta:'',nombre:'CERRAR'});
-  cargarItems(items);
+  const todo=[...r.carpetas.slice(0,20).map(c=>({tipo:'carpeta',ruta:c.ruta,nombre:c.nombre})),...r.imagenes.map(x=>({tipo:'imagen',ruta:x}))];
+  explorador.todo=todo;explorador.pag=0;explorador.base=items;pintarPagina();
   $('ruta').textContent='◈ '+r.ruta.toUpperCase();
   toast(`${r.nombre.toUpperCase()} · ${r.carpetas.length} CARPETAS · ${r.imagenes.length+r.mas_imagenes} IMÁGENES`);
 }
+const POR_PAG=22;  // 22 tarjetas + atrás/más/cerrar: fluido incluso en laptops modestas
+function pintarPagina(){
+  const e=explorador,ini=e.pag*POR_PAG,items=[...e.base];
+  if(e.pag>0)items.push({tipo:'atras',ruta:'#ant',nombre:'PÁGINA ANTERIOR'});
+  items.push(...e.todo.slice(ini,ini+POR_PAG));
+  if(ini+POR_PAG<e.todo.length)items.push({tipo:'mas',ruta:'#mas',nombre:`MÁS · ${e.todo.length-ini-POR_PAG}`});
+  items.push({tipo:'cerrar',ruta:'',nombre:'CERRAR'});
+  cargarItems(items);
+}
 function cerrarExplorador(){explorador.activo=false;document.body.classList.remove('explorando');mesa.innerHTML='';cards.length=0;abierta=null;$('nCards').textContent=0;toast('EXPLORADOR CERRADO')}
 function activar(c){
+  if(c.ruta==='#mas'){explorador.pag++;pintarPagina();return}
+  if(c.ruta==='#ant'){explorador.pag--;pintarPagina();return}
   if(c.tipo==='carpeta'||c.tipo==='atras')explorar(c.ruta);
   else if(c.tipo==='cerrar')cerrarExplorador();
   else toggleAbrir(c);
 }
+function entrenando(ev){const e=$('entreno');e.classList.add('on');document.body.classList.add('escaneando');
+  if(ev.fase==='encendiendo'){$('entTxt').textContent='ENCENDIENDO CÁMARA…';$('entN').textContent='◈';$('entBar').style.width='0'}
+  else if(ev.fase==='preparar'){$('entTxt').textContent='PREPARA EL GESTO · '+String(ev.nombre).toUpperCase();$('entN').textContent=ev.seg??'';$('entBar').style.width='0'}
+  else{$('entTxt').textContent='MANTÉN EL GESTO QUIETO';$('entN').textContent=ev.pct+' %';$('entBar').style.width=ev.pct+'%'}
+  $('entSub').textContent='';clearTimeout(e._t);e._t=setTimeout(()=>{e.classList.remove('on');document.body.classList.remove('escaneando')},15000)}
+function entrenado(ev){const e=$('entreno');
+  if(ev.ok){$('entTxt').textContent='GESTO APRENDIDO';$('entN').textContent='✓';$('entBar').style.width='100%';$('entSub').textContent=String(ev.aviso||'').toUpperCase()}
+  else{$('entTxt').textContent='NO SE PUDO';$('entN').textContent='✗';$('entSub').textContent=String(ev.error||'').toUpperCase()}
+  clearTimeout(e._t);e._t=setTimeout(()=>{e.classList.remove('on');document.body.classList.remove('escaneando')},3500)}
 function usuario(){try{return String(CFG.config.usuario||'ROBERT').toUpperCase()}catch(e){return 'ROBERT'}}
 function escaneo(ev){
   const e=$('escaneo');
@@ -337,19 +369,33 @@ function soltar(){if(agarrada)agarrada.el.classList.remove('agarrada');agarrada=
 
 /* ---------- dibujo de manos ---------- */
 const HUESOS=[[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
-function dibujarManos(manos){
-  if(Object.keys(manos).length)ultimaMano=Date.now();
-  ctx.clearRect(0,0,W,H);const lados=Object.keys(manos);$('nManos').textContent=lados.length;
-  ['Left','Right'].forEach(l=>{$('c'+l).style.display=lados.includes(l)?'block':'none'});
-  ctx.lineWidth=1.5;ctx.strokeStyle='rgba(101,244,255,.45)';ctx.fillStyle='#c9ffff';ctx.shadowColor='#38dfff';ctx.shadowBlur=8;
-  for(const l of lados){const p=manos[l].map(([x,y])=>[x*W,y*H]);  // ya llega espejado desde gestos.py
-    ctx.beginPath();HUESOS.forEach(([a,b])=>{ctx.moveTo(...p[a]);ctx.lineTo(...p[b])});ctx.stroke();
-    p.forEach(([x,y],i)=>{ctx.beginPath();ctx.arc(x,y,i%4===0?3.2:2,0,7);ctx.fill()})}
+let manosPend=null,manosDib=false,tManos=0;
+function dibujarManos(manos){  // solo guarda: se dibuja una vez por cuadro de pantalla
+  tManos=Date.now();if(Object.keys(manos).length)ultimaMano=tManos;
+  if(!manosPend)requestAnimationFrame(()=>{pintarManos(manosPend);manosPend=null});manosPend=manos;
 }
+function pintarManos(manos){
+  const lados=Object.keys(manos||{});
+  if(!lados.length&&!manosDib)return;  // nada que borrar
+  ctx.clearRect(0,0,W,H);$('nManos').textContent=lados.length;manosDib=lados.length>0;
+  ['Left','Right'].forEach(l=>{$('c'+l).style.display=lados.includes(l)?'block':'none'});
+  if(!lados.length)return;
+  ctx.lineWidth=1.5;ctx.strokeStyle='rgba(101,244,255,.55)';ctx.fillStyle='#c9ffff';
+  ctx.beginPath();
+  for(const l of lados){const p=manos[l].map(([x,y])=>[x*W,y*H]);  // ya llega espejado desde gestos.py
+    HUESOS.forEach(([a,b])=>{ctx.moveTo(...p[a]);ctx.lineTo(...p[b])})}
+  ctx.stroke();ctx.beginPath();
+  for(const l of lados)manos[l].forEach(([x,y],i)=>{const r=i%4===0?3:2;ctx.moveTo(x*W+r,y*H);ctx.arc(x*W,y*H,r,0,7)});
+  ctx.fill();
+}
+// si la cámara se apaga o se cuelga, las manos NO se quedan congeladas en pantalla
+setInterval(()=>{if(manosDib&&Date.now()-tManos>700)pintarManos({})},350);
+document.addEventListener('visibilitychange',()=>document.body.classList.toggle('oculto',document.hidden));
+let hoverCard=null;
 function cursor(ev){
   const el=$('c'+ev.mano);cursores[ev.mano]={x:ev.x,y:ev.y};
   el.style.left=ev.x*W+'px';el.style.top=ev.y*H+'px';el.classList.toggle('pinch',ev.pinch);
-  cards.forEach(c=>c.el.classList.remove('hover'));const c=cardEn(ev.x,ev.y);if(c)c.el.classList.add('hover');
+  const c=cardEn(ev.x,ev.y);if(c!==hoverCard){if(hoverCard)hoverCard.el.classList.remove('hover');if(c)c.el.classList.add('hover');hoverCard=c}
 }
 
 /* ---------- voz / HUD ---------- */
@@ -380,6 +426,9 @@ function conectar(){
     switch(ev.tipo){
       case 'manos':dibujarManos(ev.manos);break;
       case 'manos.activar':activarManos(ev);break;
+      case 'gesto.entrenando':entrenando(ev);break;
+      case 'gesto.entrenado':entrenado(ev);break;
+      case 'gesto.propio':toast('✋ '+String(ev.nombre).toUpperCase()+' → '+String((ev.accion||{}).valor||'').toUpperCase());break;
       case 'cursor':cursor(ev);break;
       case 'gesto':gesto(ev);break;
       case 'overlay.cargar':cargar(ev.rutas||[]);break;
@@ -389,8 +438,8 @@ function conectar(){
       case 'remoto.comando':$('yo').textContent='REMOTO: '+ev.texto;break;
       case 'hud.modelo':$('modelo').textContent=ev.nivel.toUpperCase()+' · '+ev.modelo.replace('claude-','');
         $('modelo').className=ev.nivel==='profundo'?'opus':'status';document.body.classList.toggle('opus',ev.nivel==='profundo');break;
-      case 'hud.fps':$('fps').textContent=ev.fps+' FPS';$('fps').style.color=ev.fps>=25?'':'var(--warn)';break;
-      case 'hud.camara':if(ev.pausada){$('fps').textContent='EN PAUSA';break}if(!ev.ok){$('fps').textContent='SIN SEÑAL';$('fps').style.color='var(--warn)';toast('CÁMARA DESCONECTADA: reintentando')}break;
+      case 'hud.fps':$('fps').textContent=ev.reposo?'REPOSO':ev.fps+' FPS';$('fps').style.color=(ev.reposo||ev.fps>=25)?'':'var(--warn)';break;
+      case 'hud.camara':if(ev.pausada){$('fps').textContent='APAGADA';$('fps').style.color='';pintarManos({});break}if(!ev.ok){$('fps').textContent='SIN SEÑAL';$('fps').style.color='var(--warn)';toast('CÁMARA DESCONECTADA: reintentando')}break;
       case 'hud.latencia':$('latencia').textContent=(ev.ms/1000).toFixed(1).replace('.',',')+' s';
         $('latencia').style.color=ev.ms<1500?'':'var(--warn)';break;
       case 'hud.panel':mostrarPanel(ev);if(ev.total)res('resDiag',`${ev.ok} de ${ev.total} pruebas OK`+(ev.ok<ev.total?' · revisa el panel':''),ev.ok===ev.total);break;
@@ -413,6 +462,14 @@ const DESC={nucleo:'IA propia de LAY · hecha desde cero · instantánea · sin 
 async function api(ruta,cuerpo){const r=await fetch(ruta,cuerpo===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cuerpo)});
   const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.detail||j.error||('HTTP '+r.status));return j}
 function res(id,txt,ok){const e=$(id);e.textContent=txt;e.className='res '+(ok===true?'ok':ok===false?'mal':'')}
+async function listarGestos(){try{const r=await api('/api/gestos');
+  $('gLista').innerHTML=(r.gestos||[]).length?r.gestos.map(g=>`<div class="gl"><span><b>${esc(g.nombre)}</b> → ${esc(g.accion.valor)}</span><button data-borrar="${esc(g.nombre)}">borrar</button></div>`).join(''):'<div class="sub">Aún no tienes gestos propios.</div>';
+  document.querySelectorAll('[data-borrar]').forEach(b=>b.onclick=async()=>{await api('/api/gestos/borrar',{nombre:b.dataset.borrar});listarGestos()})}catch(e){}}
+$('camOn').onclick=()=>api('/api/camara',{accion:'encender'}).then(()=>toast('CÁMARA ENCENDIDA'));
+$('camOff').onclick=()=>api('/api/camara',{accion:'apagar'}).then(()=>toast('CÁMARA APAGADA'));
+$('camInicio').onchange=()=>api('/api/config',{camara:{al_inicio:$('camInicio').checked}});
+$('gGrabar').onclick=async()=>{const orden=$('gOrden').value.trim();if(!orden){res('resG','Escribe qué debe hacer el gesto.',false);return}
+  try{await api('/api/gestos/entrenar',{orden,nombre:$('gNombre').value.trim()||orden});res('resG','Mira la cámara: cuenta regresiva y luego mantén el gesto.',true);cerrarConfig()}catch(e){res('resG',e.message,false)}};
 async function abrirConfig(tab){
   $('config').classList.add('abierto');if(tab)mostrarTab(tab);
   try{CFG=await api('/api/config')}catch(e){return}
@@ -428,6 +485,7 @@ async function abrirConfig(tab){
   $('usuario').value=c.usuario||'';$('vozTts').innerHTML=CFG.voces.map(v=>`<option ${v===c.voz_tts?'selected':''}>${v}</option>`).join('');
   $('wake').value=c.confianza_wake;$('wakeV').textContent=Math.round(c.confianza_wake*100)+'%';$('camara').value=c.camara_indice;$('micro').value=c.microfono??'';
   $('soloTs').checked=c.remoto.solo_tailscale!==false;
+  $('camInicio').checked=!!(c.camara&&c.camara.al_inicio);listarGestos();
   estadoIA();infoRemoto();
 }
 function cerrarConfig(){$('config').classList.remove('abierto')}

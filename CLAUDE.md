@@ -20,6 +20,9 @@ lay_core/        ÚNICA implementación de capacidades
   informacion.py web (DuckDuckGo), Wikipedia, leer página, clima (Open-Meteo) — gratis, sin claves
   recordatorios.py / memoria.py   alarmas con voz (las dispara el hub) · memoria local sin secretos
   bandeja.py     icono en la bandeja + aviso de versión nueva
+  procesos.py    relanzar roles + TODO subprocess sin ventana de cmd (sin_consolas)
+  gestos_propios.py gestos que Robert entrena (puntos normalizados + vecino más cercano)
+  nucleo/        LAY Núcleo: IA propia desde cero (numpy), órdenes al instante
   cerebro.py     bucle agente con cualquier proveedor (historial neutro) + candado de confirmación
   bus.py         publicar eventos al hub
 lay_mcp/server.py  ÚNICA lista de herramientas (MCP stdio o HTTP)
@@ -27,7 +30,7 @@ loops/hub.py       LOOP 0 bus de eventos + sirve overlay; guardia: remoto solo c
 loops/hub_api.py   Configuración dentro de la app (/api/config, /api/ia/*, /api/remoto/*) — solo local
 loops/aplausos.py  doble palmada abre LAY; triple = acción (arranca con Windows, mutex)
 overlay/remoto.html página del celular (QR + token, dictado)
-loops/gestos.py    LOOP 1 cámara → MediaPipe → gestos (overlay o mouse)
+loops/gestos.py    LOOP 1 cámara → MediaPipe → gestos (overlay o mouse). SOLO corre si se pide: lo arranca/para el hub (camara.encender/apagar)
 loops/voz.py       LOOP 2 wake word → STT → cerebro → TTS
 lay_core/cerebro   LOOP 3 bucle agente (tool use hasta end_turn)
 overlay/index.html HUD holográfico + tarjetas manipulables
@@ -42,6 +45,7 @@ integracion/       adaptadores para el repo centro_mando
 - Rutas, apps y monitores de Robert en `config/lay.json`, nunca en código.
 - Respuestas habladas: cortas, sin markdown.
 - Español en código, docstrings y mensajes al usuario.
+- Rendimiento: nada de bucles que traben el hub; clientes WS se suscriben con ?tipos=; la cámara nunca arranca sola.
 
 ## IA: gratis por defecto (regla del producto)
 - LAY debe funcionar SIN pagar en cualquier PC donde se instale el .exe: Ollama local es el defecto.

@@ -108,8 +108,31 @@ def modelos_instalados() -> list[str]:
         return []
 
 
+# Ahorro de RAM: Ollama por defecto reserva memoria para VARIAS conversaciones en paralelo y deja el
+# modelo cargado. LAY habla con una persona: 1 en paralelo, 1 modelo, y lo suelta a los 3 min sin uso.
+ENTORNO_AHORRO = {"OLLAMA_NUM_PARALLEL": "1", "OLLAMA_MAX_LOADED_MODELS": "1", "OLLAMA_KEEP_ALIVE": "3m"}
+
+
+def fijar_ahorro_windows() -> None:
+    """Deja esas variables en el usuario de Windows: también las usa el Ollama que arranca solo con Windows."""
+    if os.name != "nt":
+        return
+    import winreg
+
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment", 0, winreg.KEY_READ | winreg.KEY_SET_VALUE) as k:
+            for nombre, valor in ENTORNO_AHORRO.items():
+                try:
+                    winreg.QueryValueEx(k, nombre)  # si Robert ya puso su valor, se respeta
+                except FileNotFoundError:
+                    winreg.SetValueEx(k, nombre, 0, winreg.REG_SZ, valor)
+    except OSError:
+        pass
+
+
 def iniciar(espera_s: float = 25) -> bool:
-    """Arranca el servidor de Ollama si está instalado pero apagado."""
+    """Arranca el servidor de Ollama si está instalado pero apagado (en modo ahorro de RAM)."""
+    fijar_ahorro_windows()
     if activo():
         return True
     exe = ollama_exe()
@@ -120,7 +143,10 @@ def iniciar(espera_s: float = 25) -> bool:
         | getattr(subprocess, "CREATE_NO_WINDOW", 0)
         | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
     )
-    subprocess.Popen([exe, "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=flags)
+    entorno = {**ENTORNO_AHORRO, **os.environ}  # lo que Robert haya puesto manda
+    subprocess.Popen(
+        [exe, "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=flags, env=entorno
+    )
     fin = time.time() + espera_s
     while time.time() < fin:
         if activo():
