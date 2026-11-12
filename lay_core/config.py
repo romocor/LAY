@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import sys
 from dataclasses import dataclass, field
@@ -38,6 +39,17 @@ CONFIG_FILE = Path(os.getenv("LAY_CONFIG", _CONFIG_DEFECTO))
 AUDIT_LOG = DATA_DIR / "audit.log"
 
 
+def _repo_de_origen() -> str:
+    for base in (Path(getattr(sys, "_MEIPASS", "")), Path(__file__).resolve().parent.parent):
+        try:
+            repo = (base / "config" / "repo.txt").read_text(encoding="utf-8").strip()
+            if re.fullmatch(r"[\w.-]+/[\w.-]+", repo):
+                return repo
+        except OSError:
+            continue
+    return "romocor/LAY"
+
+
 @dataclass
 class LayConfig:
     nombre: str = "LAY"
@@ -54,7 +66,9 @@ class LayConfig:
     workspaces: dict[str, list[dict]] = field(default_factory=dict)
     usuario: str = "Robert"
     ciudad: str = "Lima"  # para el clima
-    actualizaciones: dict = field(default_factory=lambda: {"repo": "romocor/LAY"})
+    # Repo de donde salen las versiones nuevas: el que compiló este exe (lo escribe GitHub Actions
+    # en config/repo.txt), así una copia publicada en otra cuenta se actualiza desde SU repo.
+    actualizaciones: dict = field(default_factory=lambda: {"repo": _repo_de_origen()})
     # "propio": abre en TU Brave/Chrome de siempre (tus cuentas y pestañas).
     # "lay": perfil aparte que LAY puede leer y clicar por dentro (control total).
     navegador_perfil: str = "propio"

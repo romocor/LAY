@@ -160,7 +160,7 @@ def lanzador(a: argparse.Namespace) -> None:
         bus.publicar("voz.microfono", activo=estado["microfono"])
 
     # Versión nueva en GitHub Releases (solo si el repositorio es público)
-    repo = CONFIG.__dict__.get("actualizaciones", {}).get("repo", "romocor/LAY")
+    repo = CONFIG.actualizaciones.get("repo") or "romocor/LAY"
     bandeja.revisar_en_fondo(
         _version(),
         repo,

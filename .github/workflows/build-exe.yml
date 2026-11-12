@@ -28,6 +28,9 @@ jobs:
           $base = (Select-String -Path pyproject.toml -Pattern '^version = "(.+)"').Matches[0].Groups[1].Value
           $v = if ("${{ github.ref_type }}" -eq "tag") { "${{ github.ref_name }}".TrimStart("v") } else { "$base" }
           "version=$v" >> $env:GITHUB_OUTPUT
+      - name: Repo de actualizaciones (el que compila este exe)
+        shell: pwsh
+        run: Set-Content -Path config/repo.txt -Value "${{ github.repository }}" -NoNewline
       - name: Build
         shell: pwsh
         run: ./build_exe.ps1 -Version ${{ steps.ver.outputs.version }}
