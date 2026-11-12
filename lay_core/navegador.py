@@ -126,6 +126,11 @@ def _conectar(nombre: str | None):
     b = _estado["browser"]
     if b is not None and b.is_connected() and _estado["nombre"] == elegido:
         return b
+    # Si LAY lo acaba de lanzar (abrir), se espera a ESA copia: lanzar otra encima la retrasaba
+    recien = time.time() - _estado.get("lanzado_t", 0) < 30 and _estado.get("lanzado") == elegido
+    fin = time.time() + 30
+    while recien and not _puerto_abierto(puerto) and time.time() < fin:
+        time.sleep(0.3)
     if not _puerto_abierto(puerto):
         perfil = DATA_DIR / "navegador" / elegido
         perfil.mkdir(parents=True, exist_ok=True)
@@ -140,7 +145,7 @@ def _conectar(nombre: str | None):
             ],
             creationflags=getattr(subprocess, "DETACHED_PROCESS", 0),
         )
-        fin = time.time() + 15
+        fin = time.time() + 30  # un perfil nuevo en una PC lenta puede tardar
         while not _puerto_abierto(puerto) and time.time() < fin:
             time.sleep(0.3)
     if _estado["pw"] is None:
@@ -220,6 +225,7 @@ def _lanzar(elegido: str, exe: str, url: str) -> None:
         ],
         creationflags=getattr(subprocess, "DETACHED_PROCESS", 0),
     )
+    _estado.update(lanzado=elegido, lanzado_t=time.time())
 
 
 def abrir(destino: str, navegador: str | None = None, pestana_nueva: bool = True) -> dict:
