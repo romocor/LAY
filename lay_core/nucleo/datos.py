@@ -32,6 +32,7 @@ VOCAB = {
         "pedro suárez vértiz",
         "los prisioneros",
     ],
+    "pers": ["jarvis", "el pata limeño", "pata", "ingeniero", "profesor", "coach", "neutral", "un amigo", "más formal"],
     "boton": [
         "guardar",
         "aceptar",
@@ -563,6 +564,46 @@ P = {  # intención -> plantillas
         "dale play a {cancion}",
         "escuchemos {cancion}",
         "pon la canción {cancion}",
+        "quiero oír {cancion}",
+        "busca la canción {cancion}",
+        "pásame {cancion}",
+        "ponte una de {cancion}",
+        "mándate {cancion}",
+        "busca {cancion} en spotify",
+        "en spotify busca {cancion}",
+        "abre spotify y pon {cancion}",
+        "spotify {cancion}",
+        "la canción {cancion} en spotify",
+        "reproduce en spotify {cancion}",
+        "pon algo de {cancion}",
+        "una de {cancion} porfa",
+        "suena {cancion}",
+        "que suene {cancion}",
+        "busca y reproduce {cancion}",
+        "quiero escuchar la canción {cancion}",
+        "pon un tema de {cancion}",
+        "pon la playlist {cancion}",
+    ],
+    "personalidad": [
+        "cambia tu personalidad a {pers}",
+        "usa la personalidad {pers}",
+        "habla como {pers}",
+        "ponte en modo {pers}",
+        "quiero que seas {pers}",
+        "personalidad {pers}",
+        "cambia tu forma de hablar a {pers}",
+        "sé {pers}",
+    ],
+    "consultar_libros": [
+        "qué dice mi libro sobre {tema}",
+        "busca en mis documentos {tema}",
+        "según mis libros {tema}",
+        "qué dicen mis apuntes de {tema}",
+        "busca en mis libros {tema}",
+        "en mis documentos qué dice de {tema}",
+        "revisa en el reglamento {tema}",
+        "qué dice la norma sobre {tema}",
+        "consulta mis libros sobre {tema}",
     ],
     "clic": [
         "haz clic en {boton}",
@@ -760,8 +801,50 @@ P = {  # intención -> plantillas
     ],
 }
 
-PREFIJOS = ["", "", "", "lay ", "oye lay ", "lay por favor ", "por favor ", "oye ", "ley ", "hey lay "]
-SUFIJOS = ["", "", "", " por favor", " porfa", " ahora", " ya", " rápido"]
+PREFIJOS = [
+    "",
+    "",
+    "",
+    "",
+    "lay ",
+    "oye lay ",
+    "lay por favor ",
+    "por favor ",
+    "oye ",
+    "ley ",
+    "hey lay ",
+    "a ver ",
+    "oe ",
+    "causa ",
+    "ya pues ",
+    "lay quiero que ",
+    "puedes ",
+    "me puedes ",
+    "podrías ",
+]
+SUFIJOS = ["", "", "", "", " por favor", " porfa", " ahora", " ya", " rápido", " pe", " pues", " please", " de una"]
+
+# Cómo suele transcribir mal el reconocimiento de voz: el núcleo aprende también estas formas
+RUIDO_VOZ = {
+    "spotify": ["espotifai", "spotifai", "spoti", "el spotify"],
+    "youtube": ["yutub", "youtub", "el youtube", "yutu"],
+    "whatsapp": ["guasap", "wasap"],
+    "google": ["gugel", "el google"],
+    "pon ": ["ponle ", "ponte ", "mete ", "colócame ", "pónmelo "],
+    "reproduce": ["reprodúceme", "reproducí", "dale play a"],
+    "abre": ["ábreme", "abrí", "abreme", "abrir"],
+    "busca": ["búscame", "buscame", "buscar"],
+    "canción": ["cancion", "tema", "rola"],
+    "música": ["musica", "musiquita"],
+    "volumen": ["el volumen", "volúmen"],
+}
+
+
+def _ruido(t: str, rnd: random.Random) -> str:
+    for original, variantes in RUIDO_VOZ.items():
+        if original in t and rnd.random() < 0.3:
+            t = t.replace(original, rnd.choice(variantes), 1)
+    return t
 
 
 def _sin_tildes(t: str) -> str:
@@ -780,7 +863,7 @@ def generar(n_por_intencion: int = 220, semilla: int = 7) -> list[tuple[str, str
             for clave, valores in VOCAB.items():
                 while "{" + clave + "}" in t:
                     t = t.replace("{" + clave + "}", rnd.choice(valores), 1)
-            t = rnd.choice(PREFIJOS) + t + rnd.choice(SUFIJOS)
+            t = _ruido(rnd.choice(PREFIJOS) + t + rnd.choice(SUFIJOS), rnd)
             if rnd.random() < 0.35:
                 t = _sin_tildes(t)
             vistos.add(t.strip())

@@ -24,7 +24,7 @@ assert "lay_mcp.server" in propios and "loops.hub" in propios, f"No encontré lo
 hidden += propios
 hidden += [
     "pyttsx3.drivers", "pyttsx3.drivers.sapi5", "comtypes.client", "speech_recognition", "pyaudio",
-    "msal", "screeninfo", "mss", "pygetwindow", "pyperclip", "pyautogui", "PIL.Image", "PIL.ImageOps",
+    "msal", "pypdf", "screeninfo", "mss", "pygetwindow", "pyperclip", "pyautogui", "PIL.Image", "PIL.ImageOps",
     "platformdirs", "jaraco.text", "jaraco.functools", "jaraco.context",  # runtime hook de pkg_resources
 ]
 

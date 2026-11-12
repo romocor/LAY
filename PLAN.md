@@ -125,6 +125,17 @@ Cada fase se ejecuta con `/fase N` (loop planificar → implementar → verifica
 - [x] Investigado en GitHub (isair/jarvis, GauravSingh9356/J.A.R.V.I.S, clawdcursor, AnubhavChaturvedi): web gratis (DuckDuckGo + Wikipedia), clima (Open-Meteo), recordatorios/alarmas/temporizadores con voz y notificación, memoria de largo plazo con bloqueo de secretos.
 - [ ] Próximas ideas de GitHub: dictado con tecla (offline, pegar en cualquier app), leer la pantalla con OCR de Windows, visión con cámara (modelo local multimodal), WhatsApp Web, Home Assistant.
 
+## v3.0.0 — LAY aprende contigo: frases, personalidad, libros, fotos y modelos a elección
+- [x] Aprendizaje continuo del Núcleo: guarda las frases que la IA grande resolvió bien, corrección desde el chat ("corregir…"), reentreno solo cada 5 frases (~15 s, en segundo plano), modelo personal en ~/.lay/nucleo.
+- [x] Atajos de voz: "cuando diga 'modo obra' abre Revit y luego abre Excel" (hasta 8 órdenes).
+- [x] Errores típicos del reconocimiento de voz ("espotify", "spoti", "yutub", "pone") y consulta limpia: a Spotify llega SOLO la canción. Playlists y discos.
+- [x] Personalidades: Jarvis, pata limeño, ingeniero, profesor, coach, neutral y propias con ejemplos (few-shot). Por voz o en Configuración.
+- [x] Modo chat (botón CHAT o tecla T): conversación completa, por dónde respondió (Núcleo o modelo), tiempo, lo que entendió, y corrección en un clic. Historial en ~/.lay/chat.jsonl.
+- [x] Conocimiento (RAG local): libros enteros PDF/EPUB/DOCX/TXT/MD y carpetas; fotos descritas por un modelo de visión local (moondream/llava/gemma3); búsqueda BM25 + embeddings incrementales (nomic-embed-text). Responde citando documento y página. Funciona también sin Ollama ("qué dice mi libro sobre…").
+- [x] Modelos locales (lo que Alpaca hace en Linux, dentro de LAY): ver, descargar, usar y borrar cualquier modelo de Ollama.
+- [x] Permisos de Windows: detecta UIPI (ventanas de administrador), privacidad de cámara/micrófono y acceso controlado a carpetas; "Modo administrador" opcional con tarea programada (UAC una sola vez). Nunca expuesto a la IA.
+- [x] Guía docs/COMO_HABLARLE_A_LAY.md (todas sus frases verificadas contra el Núcleo).
+
 ## v2.9.0 — Música de verdad, control de cualquier app, puntería de manos
 - [x] "pon X" / "reproduce X en Spotify": busca la canción, la abre en la app y verifica que suene (título de ventana); si Spotify solo muestra la página, pulsa Reproducir por UI Automation. Antes solo hacía play/pausa de lo que ya sonaba.
 - [x] "pon el video de X" / "abre youtube y pon X": primer video de YouTube, que suena solo.

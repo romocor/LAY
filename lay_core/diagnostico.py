@@ -219,6 +219,25 @@ def p_ventana_activa() -> str:
         proc.terminate()
 
 
+def p_permisos() -> str:
+    """Restricciones de Windows. No falla: informa qué limita a LAY y cómo arreglarlo."""
+    from lay_core import permisos
+
+    e = permisos.estado()
+    if not e.get("windows"):
+        return "no es Windows"
+    if e["avisos"]:
+        return "limitaciones: " + " · ".join(a.split(":")[0] for a in e["avisos"])
+    return "sin restricciones" + (" (LAY corre como administrador)" if e["es_admin"] else "")
+
+
+def p_aprendizaje() -> str:
+    from lay_core.nucleo import aprendizaje
+
+    e = aprendizaje.estado()
+    return f"{e['frases_aprendidas']} frases aprendidas · {e['atajos']} atajos · modelo personal: {'sí' if e['modelo_personal'] else 'no'}"
+
+
 PRUEBAS: list[tuple[str, str, Callable[[], str], float, bool]] = [
     # (clave, nombre, función, límite s, se prueba en CI)
     ("manos", "Manos (MediaPipe)", p_manos_import, 60, True),
@@ -234,6 +253,8 @@ PRUEBAS: list[tuple[str, str, Callable[[], str], float, bool]] = [
     ("apps", "Apps instaladas", p_apps, 30, True),
     ("musica", "Poner canciones (Spotify/YouTube)", p_musica, 40, True),
     ("ventana_activa", "Clic en la app que tienes al frente", p_ventana_activa, 30, True),
+    ("permisos", "Restricciones de Windows", p_permisos, 30, True),
+    ("aprendizaje", "Aprendizaje de LAY", p_aprendizaje, 10, True),
     ("volumen", "Volumen", p_volumen, 10, False),
 ]
 

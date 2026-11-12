@@ -127,6 +127,26 @@ body.explorando .core *,body.explorando .core:before,body.oculto *,body.oculto *
 #escaneo .pct{font-size:42px;letter-spacing:4px;margin-top:8px}
 #escaneo.ok .txt{color:#9dffb8;text-shadow:0 0 14px #3dff8a}
 #escaneo.ok .anillo{border-style:solid;border-color:#9dffb8}
+/* modo chat */
+#btnChat{position:fixed;top:22px;left:calc(50% + 120px);z-index:12;border:1px solid rgba(101,244,255,.4);background:rgba(5,35,47,.75);color:var(--ice);font:10px Consolas,monospace;letter-spacing:3px;padding:7px 14px;cursor:pointer}
+#chat{position:fixed;left:24px;top:90px;bottom:90px;width:min(440px,34vw);z-index:11;display:none;flex-direction:column;background:rgba(2,16,24,.92);border:1px solid rgba(101,244,255,.35);box-shadow:0 0 24px rgba(38,216,247,.18)}
+#chat.on{display:flex}
+#chat .cab{padding:10px 14px;font:10px Consolas,monospace;letter-spacing:3px;color:var(--cyan);border-bottom:1px solid rgba(101,244,255,.2);display:flex;justify-content:space-between}
+#chat .cab button{all:unset;cursor:pointer;color:var(--ice)}
+#chatLista{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+.msg{max-width:88%;padding:8px 11px;font-size:13px;line-height:1.4;color:#e6fdff;border:1px solid rgba(101,244,255,.25);white-space:pre-wrap;word-wrap:break-word}
+.msg.usuario{align-self:flex-end;background:rgba(20,133,163,.28);border-color:rgba(101,244,255,.45)}
+.msg.lay{align-self:flex-start;background:rgba(3,30,42,.85)}
+.msg .meta{margin-top:5px;font:9px Consolas,monospace;letter-spacing:1px;color:rgba(160,240,255,.6);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.msg .meta select{background:#031722;color:var(--ice);border:1px solid rgba(101,244,255,.3);font-size:9px}
+#chatForm{display:flex;border-top:1px solid rgba(101,244,255,.2)}
+#chatTxt{flex:1;background:transparent;border:0;color:#fff;padding:12px;font-size:13px;outline:none}
+#chatForm button{all:unset;cursor:pointer;padding:0 16px;color:var(--cyan);font:11px Consolas,monospace;letter-spacing:2px}
+.cfg nav{overflow-y:auto}
+.lista{margin-top:10px}.lista .gl span{max-width:80%}
+.pers{display:block;padding:8px 10px;border:1px solid rgba(101,244,255,.2);margin:6px 0;cursor:pointer;font-size:12px}
+.pers.act{border-color:var(--cyan);background:rgba(20,133,163,.22)}.pers b{color:#fff}
+.cfg textarea{width:100%;min-height:70px;background:rgba(1,10,15,.8);border:1px solid rgba(101,244,255,.3);color:#fff;padding:8px;font:12px inherit;box-sizing:border-box}
 </style>
 </head>
 <body>
@@ -149,12 +169,16 @@ body.explorando .core *,body.explorando .core:before,body.oculto *,body.oculto *
   <div class="txt"><div id="escTxt">ESCANEANDO BIOMETRÍA</div><div class="pct" id="escPct">0 %</div></div></div>
 
 <button id="engranaje" title="Configuración (C)">⚙ CONFIGURACIÓN</button>
+<button id="btnChat" title="Modo chat (T)">💬 CHAT</button>
+<div id="chat"><div class="cab"><span>CONVERSACIÓN CON LAY</span><button id="chatCerrar">✕</button></div>
+  <div id="chatLista"></div>
+  <form id="chatForm"><input id="chatTxt" placeholder="Escríbele a LAY… (Enter)" autocomplete="off"><button>ENVIAR</button></form></div>
 <div id="config"><div class="cfg" style="position:relative">
  <button class="cerrar" data-cerrar>×</button>
  <nav><h2>CONFIGURACIÓN</h2>
   <button data-tab="ia" class="act">🧠 Inteligencia</button><button data-tab="universidad">🎓 Universidad</button>
   <button data-tab="correo">✉ Correo</button><button data-tab="palmadas">👏 Palmadas</button>
-  <button data-tab="manos">🖐 Manos y gestos</button><button data-tab="voz">🎙 Voz y cámara</button><button data-tab="remoto">📱 Remoto</button>
+  <button data-tab="aprendizaje">🎓 Aprendizaje</button><button data-tab="personalidad">🎭 Personalidad</button><button data-tab="conocimiento">📚 Conocimiento</button><button data-tab="modelos">🦙 Modelos locales</button><button data-tab="permisos">🛡 Permisos</button><button data-tab="manos">🖐 Manos y gestos</button><button data-tab="voz">🎙 Voz y cámara</button><button data-tab="remoto">📱 Remoto</button>
   <div class="pie" id="cfgVersion"></div></nav>
  <div style="overflow:hidden;display:flex">
  <section data-sec="ia" class="act" style="flex:1"><h3>Inteligencia</h3><p class="sub">Elige qué IA responde. La local es gratis, privada y funciona sin internet.</p>
@@ -186,6 +210,43 @@ body.explorando .core *,body.explorando .core:before,body.oculto *,body.oculto *
   <div class="sub">Baja si se activa sola con ruidos; sube si no te detecta desde lejos.</div>
   <label>Triple palmada</label><select id="apTriple"></select>
   <button class="btn" id="guardarAp">Guardar</button><div class="res" id="resAp"></div>
+ </section>
+ <section data-sec="aprendizaje" style="flex:1"><h3>Aprendizaje</h3><p class="sub">LAY aprende sola: cuando no entiende una orden y la IA grande la resuelve, guarda tu frase y se reentrena cada 5 frases. Corrige lo que entendió desde el modo chat.</p>
+  <div class="res" id="apEstado"></div>
+  <h3 style="margin-top:16px">Atajos de voz</h3><p class="sub">Una frase tuya → una o varias órdenes. También por voz: "LAY, cuando diga modo obra abre Revit y luego abre Excel".</p>
+  <div class="fila"><div><label>Cuando diga…</label><input type="text" id="atFrase" placeholder="modo obra"></div><div><label>…LAY hace (separa con "y luego")</label><input type="text" id="atOrdenes" placeholder="abre revit y luego abre excel"></div></div>
+  <button class="btn" id="atGuardar">Guardar atajo</button><button class="btn sec" id="apReentrenar">Reentrenar ahora</button><div class="res" id="resAt"></div>
+  <div class="lista" id="atLista"></div>
+  <h3 style="margin-top:16px">Frases que aprendió de ti</h3><div class="lista" id="apLista"></div>
+ </section>
+ <section data-sec="personalidad" style="flex:1"><h3>Personalidad</h3><p class="sub">Cambia cómo te habla LAY (sus reglas de seguridad no cambian). Aplica a la IA conversacional.</p>
+  <div id="persLista"></div>
+  <h3 style="margin-top:16px">Crear una propia</h3>
+  <label>Nombre</label><input type="text" id="persNombre" placeholder="Tony">
+  <label>Cómo es y cómo habla</label><textarea id="persDesc" placeholder="Genio sarcástico pero leal, habla rápido, me dice 'jefe', hace chistes de ingeniería…"></textarea>
+  <button class="btn" id="persCrear">Crear y activar</button><div class="res" id="resPers"></div>
+  <h3 style="margin-top:16px">Entrenar el tono (ejemplos)</h3><p class="sub">Para la personalidad activa: cuando digas esto, responde así.</p>
+  <div class="fila"><div><label>Tú dices</label><input type="text" id="persTu" placeholder="oe qué tal"></div><div><label>LAY responde</label><input type="text" id="persLay" placeholder="¡Qué hay, jefe! Listo para la chamba."></div></div>
+  <button class="btn sec" id="persEj">Agregar ejemplo</button>
+ </section>
+ <section data-sec="conocimiento" style="flex:1"><h3>Conocimiento</h3><p class="sub">Dale libros enteros, documentos, apuntes, normas o carpetas de fotos. LAY los lee, los indexa en tu PC y responde con ellos citando la fuente. PDF, EPUB, DOCX, TXT, MD, JPG/PNG.</p>
+  <label>Ruta del archivo o carpeta</label><input type="text" id="conRuta" placeholder="C:\Users\rober\Documents\Libros\Reglamento Nacional de Edificaciones.pdf">
+  <button class="btn" id="conAgregar">📖 Leer y aprender</button><div class="res" id="resCon"></div>
+  <div class="sub" id="conModo"></div>
+  <div class="lista" id="conLista"></div>
+  <h3 style="margin-top:16px">Probar</h3><div class="fila"><input type="text" id="conPregunta" placeholder="¿Qué dice sobre el recubrimiento mínimo de columnas?"><button class="btn sec" id="conBuscar" style="flex:0">Buscar</button></div>
+  <div class="lista" id="conRes"></div>
+ </section>
+ <section data-sec="modelos" style="flex:1"><h3>Modelos locales (Ollama)</h3><p class="sub">Como Alpaca, pero dentro de LAY: descarga, usa y borra cualquier modelo de ollama.com/library. Gratis y en tu PC.</p>
+  <div class="res" id="resMod"></div>
+  <h3 style="margin-top:12px">Instalados</h3><div class="lista" id="modInst"></div>
+  <h3 style="margin-top:12px">Sugeridos</h3><div class="lista" id="modSug"></div>
+  <label>Otro modelo (nombre exacto de ollama.com)</label><div class="fila"><input type="text" id="modNombre" placeholder="llama3.1:8b"><button class="btn" id="modBajar" style="flex:0">Descargar</button></div>
+ </section>
+ <section data-sec="permisos" style="flex:1"><h3>Permisos de Windows</h3><p class="sub">Qué deja hacer Windows a LAY en esta PC.</p>
+  <div class="lista" id="permEstado"></div>
+  <h3 style="margin-top:16px">Modo administrador</h3><p class="sub">Windows no deja que un programa normal controle ventanas abiertas como administrador (Administrador de tareas, instaladores). Con esto LAY arranca elevado (Windows pide permiso una vez). Las acciones sensibles siguen pidiendo tu "sí". Nadie puede aceptar por ti la ventana de UAC.</p>
+  <button class="btn" id="permActivar">Activar al iniciar Windows</button><button class="btn sec" id="permAhora">Reiniciar LAY como administrador</button><button class="btn sec" id="permQuitar">Desactivar</button><div class="res" id="resPerm"></div>
  </section>
  <section data-sec="manos" style="flex:1"><h3>Manos y gestos</h3><p class="sub">La cámara solo se enciende cuando la pides ("LAY, activa la cámara"). Apagada no gasta CPU ni RAM.</p>
   <div class="fila"><button class="btn" id="camOn">Encender cámara</button><button class="btn sec" id="camOff">Apagar cámara</button></div>
@@ -445,7 +506,10 @@ function conectar(){
         $('latencia').style.color=ev.ms<1500?'':'var(--warn)';break;
       case 'hud.panel':mostrarPanel(ev);if(ev.total)res('resDiag',`${ev.ok} de ${ev.total} pruebas OK`+(ev.ok<ev.total?' · revisa el panel':''),ev.ok===ev.total);break;
       case 'hud.config':abrirConfig(ev.seccion);break;
-      case 'ia.progreso':progresoIA(ev);break;
+      case 'ia.progreso':progresoIA(ev);if(String(ev.etapa).startsWith('modelo:')||ev.etapa==='error')res('resMod',ev.texto+(ev.pct?` (${ev.pct} %)`:''),ev.etapa!=='error');if(ev.pct>=100&&$('config').classList.contains('abierto'))cargarModelos();break;
+      case 'chat.mensaje':agregarMsg(ev);break;
+      case 'hud.aviso':toast(String(ev.texto||'').toUpperCase());break;
+      case 'conocimiento.listo':toast(ev.ok?`APRENDÍ ${ev.fragmentos} FRAGMENTOS`:'NO PUDE LEERLO');res('resCon',ev.ok?`Listo: ${ev.archivos} archivo(s), ${ev.fragmentos} fragmentos.`:(ev.error||'Error'),!!ev.ok);cargarConocimiento();break;
       case 'ia.lista':progresoIA({pct:100,texto:'✓ IA local lista'});estadoIA();toast('IA LOCAL LISTA');break;
       case 'ia.error':res('localProg',ev.detalle,false);$('instalarIA').disabled=false;break;
       case 'aplausos':if(ev.n===2){try{window.pywebview&&pywebview.api.restaurar()}catch(e){}toast('👏👏 AQUÍ ESTOY')}else toast('👏👏👏 '+(ev.accion||''));break;
@@ -471,6 +535,77 @@ $('camOff').onclick=()=>api('/api/camara',{accion:'apagar'}).then(()=>toast('CÁ
 $('camInicio').onchange=()=>api('/api/config',{camara:{al_inicio:$('camInicio').checked}});
 $('gGrabar').onclick=async()=>{const orden=$('gOrden').value.trim();if(!orden){res('resG','Escribe qué debe hacer el gesto.',false);return}
   try{await api('/api/gestos/entrenar',{orden,nombre:$('gNombre').value.trim()||orden});res('resG','Mira la cámara: cuenta regresiva y luego mantén el gesto.',true);cerrarConfig()}catch(e){res('resG',e.message,false)}};
+/* ---------- modo chat ---------- */
+let INTENCIONES=[],chatCargado=false;
+function alternarChat(forzar){const c=$('chat');const on=forzar??!c.classList.contains('on');c.classList.toggle('on',on);
+  if(on){if(!chatCargado)cargarChat();setTimeout(()=>$('chatTxt').focus(),50)}}
+async function cargarChat(){chatCargado=true;try{const r=await api('/api/chat');$('chatLista').innerHTML='';(r.mensajes||[]).forEach(m=>agregarMsg(m,true));
+  const a=await api('/api/aprendizaje');INTENCIONES=a.intenciones||[]}catch(e){}bajarChat()}
+function bajarChat(){const l=$('chatLista');l.scrollTop=l.scrollHeight}
+let ultimoUsuario='';
+function agregarMsg(m,historico){
+  if(!chatCargado&&!historico)return;
+  const d=document.createElement('div');d.className='msg '+(m.rol==='usuario'?'usuario':'lay');d.textContent=m.texto||'';
+  if(m.rol==='usuario')ultimoUsuario=m.texto||'';
+  else{const meta=document.createElement('div');meta.className='meta';const frase=ultimoUsuario;
+    const via=String(m.via||'').replace(/^nucleo:.*/,'LAY Núcleo');
+    meta.innerHTML=(via?`<span>${esc(via)}</span>`:'')+(m.segundos!=null?`<span>${m.segundos} s</span>`:'')+(m.aprendio?'<span>✓ aprendió esta frase</span>':'')
+      +(m.entendido?`<span>entendí: ${esc(m.entendido.intencion)}</span>`:'');
+    if(frase&&INTENCIONES.length){const sel=document.createElement('select');sel.innerHTML='<option value="">corregir…</option>'+INTENCIONES.map(i=>`<option>${i}</option>`).join('');
+      sel.onchange=async()=>{if(!sel.value)return;const r=await api('/api/aprendizaje/corregir',{frase,intencion:sel.value});toast(r.ok?'CORREGIDO: APRENDIENDO':'NO SE PUDO');sel.disabled=true};meta.appendChild(sel)}
+    d.appendChild(meta)}
+  $('chatLista').appendChild(d);bajarChat();
+}
+$('btnChat').onclick=()=>alternarChat();$('chatCerrar').onclick=()=>alternarChat(false);
+$('chatForm').onsubmit=async e=>{e.preventDefault();const t=$('chatTxt').value.trim();if(!t)return;$('chatTxt').value='';try{await api('/api/comando',{texto:t})}catch(err){toast('LAY NO RESPONDE')}};
+
+/* ---------- aprendizaje ---------- */
+async function cargarAprendizaje(){try{const r=await api('/api/aprendizaje');INTENCIONES=r.intenciones||INTENCIONES;
+  res('apEstado',`${r.frases_aprendidas} frases aprendidas · ${r.atajos} atajos${r.entrenando?' · entrenando…':''}${r.modelo_personal?' · usando tu modelo personal':''}`,true);
+  $('atLista').innerHTML=Object.entries(r.atajos||{}).map(([f,o])=>`<div class="gl"><span><b>${esc(f)}</b> → ${esc(o.join(' · '))}</span><button data-olvidar="${esc(f)}">borrar</button></div>`).join('')||'<div class="sub">Sin atajos todavía.</div>';
+  document.querySelectorAll('[data-olvidar]').forEach(b=>b.onclick=async()=>{await api('/api/aprendizaje/atajo',{frase:b.dataset.olvidar,borrar:true});cargarAprendizaje()});
+  $('apLista').innerHTML=(r.recientes||[]).map(e=>`<div class="gl"><span>"${esc(e.texto)}" → <b>${esc(e.intencion)}</b></span><span class="sub">${esc(e.origen)}</span></div>`).join('')||'<div class="sub">Todavía nada: aprende mientras la usas.</div>'}catch(e){}}
+$('atGuardar').onclick=async()=>{try{const r=await api('/api/aprendizaje/atajo',{frase:$('atFrase').value,ordenes:$('atOrdenes').value});res('resAt',r.ok?'Guardado: '+r.ordenes.join(' · '):r.error,!!r.ok);cargarAprendizaje()}catch(e){res('resAt',e.message,false)}};
+$('apReentrenar').onclick=async()=>{await api('/api/aprendizaje/reentrenar',{});res('resAt','Entrenando en segundo plano (≈15 s)…',true);setTimeout(cargarAprendizaje,16000)};
+
+/* ---------- personalidad ---------- */
+let persActiva='neutral';
+async function cargarPersonalidad(){try{const r=await api('/api/personalidades');persActiva=r.activa;
+  $('persLista').innerHTML=r.personalidades.map(p=>`<label class="pers ${p.clave===r.activa?'act':''}" data-p="${esc(p.clave)}"><b>${esc(p.nombre)}</b>${p.propia?' · propia':''}${p.ejemplos?` · ${p.ejemplos} ejemplos`:''}<br><span class="sub">${esc(p.descripcion)}</span></label>`).join('');
+  document.querySelectorAll('[data-p]').forEach(l=>l.onclick=async()=>{await api('/api/personalidades',{accion:'activar',clave:l.dataset.p});toast('PERSONALIDAD: '+l.dataset.p.toUpperCase());cargarPersonalidad()})}catch(e){}}
+$('persCrear').onclick=async()=>{const r=await api('/api/personalidades',{accion:'crear',nombre:$('persNombre').value,descripcion:$('persDesc').value});res('resPers',r.ok?'Creada y activa.':r.error,!!r.ok);cargarPersonalidad()};
+$('persEj').onclick=async()=>{const r=await api('/api/personalidades',{accion:'ejemplo',clave:persActiva,tu:$('persTu').value,lay:$('persLay').value});res('resPers',r.ok?`Ejemplo agregado (${r.ejemplos}).`:r.error,!!r.ok);$('persTu').value=$('persLay').value='';cargarPersonalidad()};
+
+/* ---------- conocimiento ---------- */
+async function cargarConocimiento(){try{const r=await api('/api/conocimiento');
+  $('conModo').textContent=r.semantico?'Búsqueda por significado activa (embeddings).':'Búsqueda por palabras. Para buscar por significado descarga "nomic-embed-text" en Modelos locales.';
+  if(r.leyendo)res('resCon',`Leyendo ${r.leyendo[0]} (${r.leyendo[1]}/${r.leyendo[2]})…`,true);
+  $('conLista').innerHTML=(r.fuentes||[]).map(f=>`<div class="gl"><span><b>${esc(f.nombre)}</b> · ${f.fragmentos} fragmentos</span><button data-fuente="${esc(f.nombre)}">olvidar</button></div>`).join('')||'<div class="sub">Aún no le diste nada para leer.</div>';
+  document.querySelectorAll('[data-fuente]').forEach(b=>b.onclick=async()=>{await api('/api/conocimiento/borrar',{fuente:b.dataset.fuente});cargarConocimiento()})}catch(e){}}
+$('conAgregar').onclick=async()=>{const r=await api('/api/conocimiento/agregar',{ruta:$('conRuta').value});res('resCon',r.ok?'Leyendo… te aviso al terminar (un libro grande tarda unos minutos).':r.error,!!r.ok)};
+$('conBuscar').onclick=async()=>{const r=await api('/api/conocimiento/buscar',{pregunta:$('conPregunta').value});
+  $('conRes').innerHTML=(r.fragmentos||[]).map(f=>`<div class="gl" style="display:block"><b>${esc(f.fuente)} ${esc(f.ubic||'')}</b><div class="sub">${esc(f.texto.slice(0,320))}…</div></div>`).join('')||'<div class="sub">Nada relacionado.</div>'};
+
+/* ---------- modelos locales ---------- */
+async function cargarModelos(){try{const r=await api('/api/modelos');const uso=JSON.stringify(r.en_uso||{});
+  if(!r.activo)res('resMod','Ollama está apagado o no instalado: instálalo desde Inteligencia.',false);
+  $('modInst').innerHTML=(r.instalados||[]).map(m=>`<div class="gl"><span><b>${esc(m.nombre)}</b> · ${m.gb} GB ${esc(m.parametros||'')}${uso.includes('"'+m.nombre+'"')?' · EN USO':''}</span><span><button data-usar="${esc(m.nombre)}" style="border-color:rgba(101,244,255,.5);color:var(--cyan)">usar</button> <button data-borrarm="${esc(m.nombre)}">borrar</button></span></div>`).join('')||'<div class="sub">Ninguno.</div>';
+  const inst=(r.instalados||[]).map(m=>m.nombre.replace(/:latest$/,''));
+  $('modSug').innerHTML=r.sugeridos.map(m=>`<div class="gl"><span><b>${esc(m.nombre)}</b> · ${m.gb} GB<br><span class="sub">${esc(m.para)}</span></span>${inst.includes(m.nombre)?'<span class="sub">instalado</span>':`<button data-bajar="${esc(m.nombre)}" style="border-color:rgba(101,244,255,.5);color:var(--cyan)">descargar</button>`}</div>`).join('');
+  document.querySelectorAll('[data-usar]').forEach(b=>b.onclick=async()=>{await api('/api/modelos/usar',{nombre:b.dataset.usar});res('resMod','LAY conversa ahora con '+b.dataset.usar,true);cargarModelos()});
+  document.querySelectorAll('[data-borrarm]').forEach(b=>b.onclick=async()=>{const x=await api('/api/modelos/borrar',{nombre:b.dataset.borrarm});res('resMod',x.ok?'Borrado.':x.error,!!x.ok);cargarModelos()});
+  document.querySelectorAll('[data-bajar]').forEach(b=>b.onclick=()=>bajarModelo(b.dataset.bajar))}catch(e){res('resMod',e.message,false)}}
+async function bajarModelo(n){try{await api('/api/modelos/descargar',{nombre:n});res('resMod','Descargando '+n+'…',true)}catch(e){res('resMod',e.message,false)}}
+$('modBajar').onclick=()=>bajarModelo($('modNombre').value.trim());
+
+/* ---------- permisos ---------- */
+async function cargarPermisos(){try{const r=await api('/api/permisos');if(!r.windows){$('permEstado').innerHTML='<div class="sub">Solo en Windows.</div>';return}
+  const f=(ok,t)=>`<div class="gl"><span>${ok?'✓':'✗'} ${esc(t)}</span></div>`;
+  $('permEstado').innerHTML=f(r.es_admin,r.es_admin?'LAY corre como administrador':'LAY corre sin privilegios de administrador')+f(r.camara_permitida,'Cámara permitida')+f(r.microfono_permitido,'Micrófono permitido')+f(!r.acceso_controlado_carpetas,'Sin bloqueo de "Acceso controlado a carpetas"')+f(r.modo_admin_configurado,'Modo administrador al iniciar Windows')
+    +(r.avisos||[]).map(a=>`<div class="sub" style="color:var(--warn)">${esc(a)}</div>`).join('')}catch(e){}}
+const perm=a=>async()=>{const r=await api('/api/permisos',{accion:a});res('resPerm',r.ok?(r.nota||'Listo.'):r.error,!!r.ok);setTimeout(cargarPermisos,4000)};
+$('permActivar').onclick=perm('activar');$('permAhora').onclick=perm('ahora');$('permQuitar').onclick=perm('desactivar');
+
 async function abrirConfig(tab){
   $('config').classList.add('abierto');if(tab)mostrarTab(tab);
   try{CFG=await api('/api/config')}catch(e){return}
@@ -490,7 +625,7 @@ async function abrirConfig(tab){
   estadoIA();infoRemoto();
 }
 function cerrarConfig(){$('config').classList.remove('abierto')}
-function mostrarTab(t){document.querySelectorAll('.cfg nav button[data-tab]').forEach(b=>b.classList.toggle('act',b.dataset.tab===t));
+function mostrarTab(t){({aprendizaje:cargarAprendizaje,personalidad:cargarPersonalidad,conocimiento:cargarConocimiento,modelos:cargarModelos,permisos:cargarPermisos}[t]||(()=>{}))();document.querySelectorAll('.cfg nav button[data-tab]').forEach(b=>b.classList.toggle('act',b.dataset.tab===t));
   document.querySelectorAll('.cfg section').forEach(s=>s.classList.toggle('act',s.dataset.sec===t))}
 function provElegido(){return (document.querySelector('input[name=prov]:checked')||{}).value||'ollama'}
 function pintarClave(){const p=provElegido(),a=AYUDA_CLAVE[p];$('claveBox').style.display=a?'block':'none';$('localBox').style.display=p==='ollama'?'block':'none';
@@ -539,7 +674,7 @@ async function primeraVez(){try{const c=await api('/api/config');if(c.config.ia.
 setTimeout(primeraVez,1200);
 conectar();
 setTimeout(()=>$('ayuda').classList.add('oculta'),15000);  // visible 15 s al abrir; D la muestra/oculta
-addEventListener('keydown',e=>{if(e.target.closest&&e.target.closest('#config'))return;if(e.key==='c')abrirConfig();if(e.key==='Escape'){cerrarConfig();enviar({tipo:'voz.callar'});$('panel').classList.remove('visible')}if(e.key==='r')grilla();if(e.key==='e')explorador.activo?cerrarExplorador():explorar(null);if(e.key==='Backspace'&&explorador.activo){const a=cards.find(c=>c.tipo==='atras');if(a)explorar(a.ruta)}if(e.key==='d'){$('ayuda').classList.toggle('oculta')}});
+addEventListener('keydown',e=>{if(e.target.closest&&e.target.closest('#config,#chat'))return;if(e.key==='t'){e.preventDefault();alternarChat();return}if(e.key==='c')abrirConfig();if(e.key==='Escape'){cerrarConfig();enviar({tipo:'voz.callar'});$('panel').classList.remove('visible')}if(e.key==='r')grilla();if(e.key==='e')explorador.activo?cerrarExplorador():explorar(null);if(e.key==='Backspace'&&explorador.activo){const a=cards.find(c=>c.tipo==='atras');if(a)explorar(a.ruta)}if(e.key==='d'){$('ayuda').classList.toggle('oculta')}});
 /* Ratón como respaldo para probar sin cámara */
 // clic corto = como TAP (entrar a carpeta / ampliar) · doble clic = abrir en Windows · arrastrar = mover
 let mdown=false,abajo=null,clicPend=null;

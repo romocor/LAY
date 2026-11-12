@@ -11,6 +11,7 @@ modelo de lenguaje "decida" usar la herramienta); la charla abierta va al modelo
 from __future__ import annotations
 
 import re
+import unicodedata
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -94,7 +95,28 @@ class Comprension:
 def cargar_modelo() -> _m.Modelo:
     if "m" not in _cache:
         _cache["m"] = _m.Modelo.cargar()
+        _al_cargar()
     return _cache["m"]
+
+
+def recargar_modelo() -> None:
+    _cache.pop("m", None)
+
+
+def _al_cargar() -> None:
+    """Tras actualizar LAY, el modelo personal queda viejo: se rehace con las frases aprendidas."""
+    from lay_core.nucleo import aprendizaje
+
+    if aprendizaje.ejemplos():
+        try:
+            import numpy as np
+
+            d = np.load(aprendizaje.CARPETA / "modelo_nucleo.npz", allow_pickle=False)
+            vigente = "huella" in d.files and str(d["huella"]) == aprendizaje.huella_datos()
+        except Exception:  # noqa: BLE001
+            vigente = False
+        if not vigente:
+            aprendizaje.reentrenar_en_fondo()
 
 
 # ---------------- extracción de datos ----------------
@@ -123,6 +145,31 @@ def _resto(t: str, verbos: str) -> str:
         r"\b(por favor|porfa|ahora|ya|rapido|en el navegador|en brave|en chrome|en el explorador|en mi pc)\b", "", r
     )
     return re.sub(r"\s+", " ", r).strip(" ,.")
+
+
+VERBOS_MUSICA = (
+    r"busca(me)?|pon(me|te|le|la|lo|melo)?|reproduce(me)?|reproducir|reproduci|toca(me)?|dale play a|escuchemos|"
+    r"quiero (escuchar|oir|ver)|me gustaria (escuchar|oir)|mete|coloca(me)?|abre|entra a|ve a|quiero"
+)
+
+
+def limpiar_consulta(t: str) -> str:
+    """'pon nadie sabe en spotify por favor' -> 'nadie sabe'. Quita verbos, plataforma y relleno, en
+    cualquier orden, para que Spotify/YouTube reciban SOLO la canción o el artista."""
+    q = f" {t} "
+    q = re.sub(r"\s(en|por|de|desde)\s+(spotify|youtube)\b", " ", q)  # "... en spotify"
+    q = re.sub(r"\s(spotify|youtube)\s", " ", q)
+    q = re.sub(rf"^\s*(lay\s+)?({VERBOS_MUSICA})\b", " ", q)
+    q = re.sub(rf"^\s*({VERBOS_MUSICA})\b", " ", q)  # "abre youtube y pon..." ya vino cortado
+    q = re.sub(r"\s+y\s+(ponla|ponlo|reproducela|reproducelo|dale play)\s*$", " ", q)
+    q = re.sub(
+        r"^\s*(algo de|musica de|la musica de|canciones de|la cancion|el tema|la rola|el video de|un video de|"
+        r"la de|el de|una cancion de|un tema de|el disco|el album|la playlist( de)?|mi playlist( de)?)\s+",
+        " ",
+        q,
+    )
+    q = re.sub(r"\s+(ahora|ya|porfa|por favor|pe|pues|de una|please)\s*$", " ", q)
+    return re.sub(r"\s+", " ", q).strip()
 
 
 def extraer(intencion: str, original: str) -> dict:
@@ -155,8 +202,7 @@ def extraer(intencion: str, original: str) -> dict:
         clave = next((k for k in sorted(SITIOS, key=len, reverse=True) if re.search(rf"\b{k}\b", sitio)), None)
         d["url"] = SITIOS[clave] if clave else sitio
     elif intencion == "youtube":
-        q = _resto(t, "pon en youtube|busca en youtube|reproduce|ponme|quiero ver|youtube|pon")
-        d["consulta"] = re.sub(r"\b(en youtube|youtube)\b", "", q).strip()
+        d["consulta"] = limpiar_consulta(t)
     elif intencion == "clima":
         m = re.search(r"\b(?:en|de)\s+([a-z ]+)$", t)
         d["ciudad"] = m.group(1).strip() if m and m.group(1).strip() not in ("hoy", "la manana", "manana") else None
@@ -182,16 +228,26 @@ def extraer(intencion: str, original: str) -> dict:
         )
     elif intencion == "reproducir":
         d["plataforma"] = "youtube" if re.search(r"youtube|video", t) else "spotify"
-        q = re.sub(
-            r"^(lay\s+)?(busca(me)?|pon(me|la)?|reproduce|quiero (escuchar|ver)|toca|dale play a|escuchemos|"
-            r"en spotify pon|en youtube pon)\s+",
-            "",
-            t,
-        )
-        q = re.sub(r"\s+(en|por)\s+(spotify|youtube)(\s+y\s+(ponla|ponlo|reproducela|reproducelo))?$", "", q)
-        q = re.sub(r"^(en spotify|en youtube)\s+", "", q)
-        q = re.sub(r"^(musica de|algo de|la cancion|el video de|la musica de)\s+", "", q)
-        d["consulta"] = q.strip()
+        if re.search(r"\bplaylist|lista de reproduccion\b", t):
+            d["tipo"] = "playlist"
+        elif re.search(r"\b(album|disco)\b", t):
+            d["tipo"] = "album"
+        d["consulta"] = limpiar_consulta(t)
+    elif intencion == "personalidad":
+        q = re.sub(r"^.*?\b(personalidad( a)?|habla como|modo|que seas|forma de hablar a|se)\s+", "", t).strip()
+        d["nombre"] = re.sub(r"^(el|la|un|una)\s+", "", q).replace("limeno", "").strip() or q
+    elif intencion == "consultar_libros":
+        if re.search(r"\b(sobre|acerca de|respecto a)\s+", t):  # "qué dice la norma SOBRE escaleras"
+            d["pregunta"] = re.split(r"\b(?:sobre|acerca de|respecto a)\s+", t, maxsplit=1)[1].strip()
+        else:
+            d["pregunta"] = (
+                re.sub(
+                    r"^(de|del|sobre)\s+",
+                    "",
+                    re.sub(r"^.*?\b(de|documentos|libros|apuntes|reglamento|norma)\s+", "", t, count=1).strip(),
+                )
+                or t
+            )
     elif intencion == "clic":
         d["objetivo"] = re.sub(
             r"^.*?\b(clic en|click en|clic a|pulsa|presiona( el boton)?|aprieta|selecciona|dale a|toca el boton)\s+",
@@ -281,23 +337,55 @@ def extraer(intencion: str, original: str) -> dict:
     return d
 
 
+ENSENAR = re.compile(
+    r"^(?:lay\s+)?(?:cuando (?:te )?diga(?:s)?|si te digo|aprende que|cada vez que diga)\s+['\"]?(.+?)['\"]?\s*,?\s+"
+    r"(?:significa\s+|es\s+|quiero que\s+|tienes que\s+|debes\s+)?"
+    r"((?:abre|abras|pon|pongas|ponme|busca|busques|cierra|mueve|sube|baja|reproduce|activa|desactiva|muestra|haz|"
+    r"dime|toma|bloquea|apaga|entra|lee|escribe)\b.+)$"
+)
+
+
 def entender(texto: str) -> Comprension:
+    from lay_core.nucleo import aprendizaje
+
+    t0 = normalizar(texto)
+    m = ENSENAR.match(t0)
+    if m:  # "cuando diga 'modo obra' abre revit y luego abre excel"
+        return Comprension("ensenar_atajo", 0.99, {"frase": m.group(1).strip(), "ordenes": m.group(2).strip()})
+    ordenes = aprendizaje.buscar_atajo(texto)  # frases que Robert le enseñó: mandan sobre todo
+    if ordenes:
+        return Comprension("atajo", 1.0, {"ordenes": ordenes})
+    return entender_modelo(texto)
+
+
+def entender_modelo(texto: str) -> Comprension:
     m = cargar_modelo()
     intencion, conf, segunda, conf2 = m.predecir(texto)
     t = normalizar(texto)
     # Reglas de precisión sobre el clasificador (casos que la estadística confunde)
-    if re.match(r"^(si|sí|claro|dale|confirmo|hazlo|ok|okay|de acuerdo|adelante|envialo)\b", t) and len(t.split()) <= 4:
+    if (
+        re.match(r"^(si|sí|claro|dale|confirmo|hazlo|ok|okay|de acuerdo|adelante|envialo)\b", t)
+        and len(t.split()) <= 4
+        and not re.match(r"^dale (a|al|clic|click|play)\b", t)  # "dale a Siguiente" es un clic, no un sí
+    ):
         return Comprension("confirmar", 0.99)
     if re.match(r"^(no|cancela|mejor no|olvidalo|dejalo)\b", t) and len(t.split()) <= 4:
         return Comprension("negar", 0.99)
     if intencion == "abrir_app" and any(re.search(rf"\b{k}\b", t) for k in SITIOS) and not re.search(r"\bapp\b", t):
         intencion = "abrir_web"
+    crudo = unicodedata.normalize("NFKD", texto.lower()).encode("ascii", "ignore").decode().strip(" ,.!¡?¿")
+    saludo = r"^(hola|oye|hey|buenos dias|buenas( tardes| noches)?|buen dia|que tal|que hay)\b"
+    if (re.match(saludo, t) and len(t.split()) <= 4) or (not t and re.match(saludo, crudo)):
+        return Comprension("saludo", 0.99)  # "hola lay" (el relleno deja la frase vacía)
     m_y = re.search(r"\b(spotify|youtube)\b.*\by\s+(pon|ponme|reproduce|busca)\s+(.+)$", t)
     if m_y and intencion in ("abrir_app", "abrir_web", "youtube", "buscar_web", "reproducir"):
         intencion, conf = "reproducir", max(conf, UMBRAL)
         datos_y = {"plataforma": m_y.group(1), "consulta": m_y.group(3).strip()}
     else:
         datos_y = None
+    # "pon lofi en youtube": poner (no solo buscar) -> el primer video empieza a sonar
+    if intencion == "youtube" and re.match(r"^(pon|ponme|reproduce|toca)\b", t):
+        intencion = "reproducir"
     # "pon/reproduce <algo>" que el modelo no reconoce y no es volumen/brillo/ventana -> es música
     if (
         conf < UMBRAL
@@ -309,7 +397,7 @@ def entender(texto: str) -> Comprension:
         intencion = "abrir_carpeta"
     # "abre <algo>" sin pistas de archivo/imagen/carpeta/web y el modelo duda -> es una app (aunque esté mal escrita)
     if (
-        conf < UMBRAL
+        (conf < UMBRAL or intencion in ("mostrar_imagenes", "abrir_archivo"))  # sin palabras de foto/archivo: no lo es
         and re.match(r"^(abre|abreme|abrir|ejecuta|inicia|lanza|arranca)\b", t)
         and intencion in ("abrir_app", "abrir_archivo", "mostrar_imagenes", "abrir_web")
         and not re.search(r"\b(fotos?|imagen(es)?|archivo|documento|pdf|excel|word|carpeta|pagina|web|\.\w{2,4})\b", t)
@@ -323,6 +411,12 @@ def entender(texto: str) -> Comprension:
 def plan(c: Comprension, usuario: str = "Robert") -> tuple[list[tuple[str, dict]], str]:
     """(llamadas a herramientas, respuesta directa si no hay llamadas)."""
     d, i = c.datos, c.intencion
+    if i == "atajo":  # frase enseñada por Robert -> sus órdenes, una tras otra
+        todas: list[tuple[str, dict]] = []
+        for orden in d.get("ordenes", [])[:8]:
+            sub = entender_modelo(orden)
+            todas += plan(sub, usuario)[0] if sub.intencion != "atajo" else []
+        return todas, "" if todas else "Ese atajo no tiene órdenes que entienda."
     ahora = datetime.now()
     dias = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
     meses = [
@@ -362,11 +456,13 @@ def plan(c: Comprension, usuario: str = "Robert") -> tuple[list[tuple[str, dict]
         "reproducir": [
             (
                 "youtube_reproducir" if d.get("plataforma") == "youtube" else "spotify_reproducir",
-                {"consulta": d.get("consulta", "")},
+                {"consulta": d.get("consulta", ""), **({"tipo": d["tipo"]} if d.get("tipo") else {})},
             )
         ]
         if d.get("consulta")
         else [("multimedia", {"accion": "pausa"})],
+        "personalidad": [("personalidad_activar", {"nombre": d.get("nombre", "")})],
+        "consultar_libros": [("conocimiento_buscar", {"pregunta": d.get("pregunta", ""), "n": 3})],
         "clic": [("ui_click", {"ventana": "activa", "objetivo": d.get("objetivo", "")})],
         "buscar_en_app": [("app_buscar", {"app": d.get("app", ""), "consulta": d.get("consulta", "")})],
         "entrenar_gesto": [("gesto_entrenar", {"nombre": d.get("orden", ""), "orden": d.get("orden", "")})]
@@ -409,6 +505,7 @@ def plan(c: Comprension, usuario: str = "Robert") -> tuple[list[tuple[str, dict]
         "escribir": [("teclado_escribir", {"texto": d.get("texto", "")})],
         "configuracion": [("abrir_configuracion", {"seccion": "ia"})],
         "diagnostico": [("diagnostico_ejecutar", {})],
+        "ensenar_atajo": [("lay_aprender_atajo", {"frase": d.get("frase", ""), "ordenes": d.get("ordenes", "")})],
     }
     return mapa.get(i, []), ""
 
@@ -466,6 +563,10 @@ def responder(intencion: str, resultados: list[tuple[str, object]], datos: dict)
         return "Silenciado." if r.get("silenciado") else f"Volumen al {r.get('volumen', '?')} %."
     if intencion == "brillo" and isinstance(r, dict):
         return f"Brillo al {r.get('brillo', '?')} %."
+    if intencion == "ensenar_atajo" and isinstance(r, dict) and r.get("ok"):
+        return f"Aprendido. Cuando digas {r['frase']}, haré: " + "; luego ".join(r["ordenes"]) + "."
+    if intencion == "atajo":
+        return "Listo, hecho." if all(_ok(x[1]) for x in resultados) else "Hice tu atajo, pero algo falló."
     if intencion == "reproducir" and isinstance(r, dict):
         if r.get("sonando"):
             return f"Sonando: {r['sonando']}."
@@ -474,6 +575,15 @@ def responder(intencion: str, resultados: list[tuple[str, object]], datos: dict)
         if r.get("aviso"):
             return r["aviso"]
         return "Listo." if r.get("ok") else (r.get("error") or "No pude ponerla.")
+    if intencion == "personalidad" and isinstance(r, dict) and r.get("ok"):
+        return f"Listo, ahora hablo en modo {r.get('nombre', r.get('activa'))}."
+    if intencion == "consultar_libros" and isinstance(r, dict):
+        res = r.get("fragmentos") or []
+        if not res:
+            return "No encontré eso en tus documentos. Agrégalos en Configuración, Conocimiento."
+        x = res[0]
+        fuente = x.get("fuente", "tu documento") + (f", {x['ubic']}" if x.get("ubic") else "")
+        return f"Según {fuente}: {x['texto'][:350].strip()}…"
     if intencion == "clic" and isinstance(r, dict) and r.get("ok"):
         return f"Clic en {r.get('clic')}."
     if intencion == "buscar_en_app" and isinstance(r, dict) and r.get("ok"):

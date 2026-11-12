@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import ipaddress
+import re
 import secrets
 import threading
 import time
@@ -170,7 +171,7 @@ def registrar(app: FastAPI, difundir) -> None:
 
     @app.post("/api/probar/ia")
     async def probar_ia(body: dict):
-        nombre = body.get("proveedor") or cfg.CONFIG.ia.get("proveedor", "ollama")
+        nombre = body.get("proveedor") or cfg.cfg.CONFIG.ia.get("proveedor", "ollama")
 
         def prueba():
             t0 = time.monotonic()
@@ -229,6 +230,169 @@ def registrar(app: FastAPI, difundir) -> None:
         from lay_core import ia_local
 
         return await asyncio.to_thread(ia_local.estado)
+
+    # ---------- modo chat ----------
+    @app.get("/api/chat")
+    async def chat_historial(n: int = 80):
+        from loops import hub
+
+        return {"mensajes": hub.historial_chat(n)}
+
+    # ---------- aprendizaje del Núcleo ----------
+    @app.get("/api/aprendizaje")
+    async def aprendizaje_api():
+        from lay_core.nucleo import aprendizaje, datos
+
+        return {
+            **aprendizaje.estado(),
+            "atajos": aprendizaje.atajos(),
+            "recientes": aprendizaje.ejemplos()[-30:][::-1],
+            "intenciones": sorted(datos.P),
+        }
+
+    @app.post("/api/aprendizaje/corregir")
+    async def aprendizaje_corregir(body: dict):
+        from lay_core.nucleo import aprendizaje
+
+        return aprendizaje.corregir(str(body.get("frase", "")), str(body.get("intencion", "")))
+
+    @app.post("/api/aprendizaje/atajo")
+    async def aprendizaje_atajo(body: dict):
+        from lay_core.nucleo import aprendizaje
+
+        if body.get("borrar"):
+            return aprendizaje.olvidar_atajo(str(body.get("frase", "")))
+        return aprendizaje.ensenar(str(body.get("frase", "")), str(body.get("ordenes", "")))
+
+    @app.post("/api/aprendizaje/reentrenar")
+    async def aprendizaje_reentrenar():
+        from lay_core.nucleo import aprendizaje
+
+        return {"ok": aprendizaje.reentrenar_en_fondo()}
+
+    # ---------- personalidades ----------
+    @app.get("/api/personalidades")
+    async def personalidades_api():
+        from lay_core import personalidades
+
+        return personalidades.listar()
+
+    @app.post("/api/personalidades")
+    async def personalidades_accion(body: dict):
+        from lay_core import personalidades as pe
+
+        accion = body.get("accion")
+        if accion == "activar":
+            return pe.activar(str(body.get("clave", "")))
+        if accion == "crear":
+            return pe.crear(str(body.get("nombre", "")), str(body.get("descripcion", "")), body.get("ejemplos") or [])
+        if accion == "ejemplo":
+            return pe.agregar_ejemplo(str(body.get("clave", "")), str(body.get("tu", "")), str(body.get("lay", "")))
+        if accion == "borrar":
+            return pe.borrar(str(body.get("clave", "")))
+        raise HTTPException(400, "acción desconocida")
+
+    # ---------- conocimiento (libros, documentos, fotos) ----------
+    @app.get("/api/conocimiento")
+    async def conocimiento_api():
+        from lay_core import conocimiento
+
+        return await asyncio.to_thread(conocimiento.listar)
+
+    @app.post("/api/conocimiento/agregar")
+    async def conocimiento_agregar(body: dict):
+        from lay_core import conocimiento
+
+        return conocimiento.agregar_en_fondo(str(body.get("ruta", "")).strip().strip('"'), body.get("nombre") or None)
+
+    @app.post("/api/conocimiento/borrar")
+    async def conocimiento_borrar(body: dict):
+        from lay_core import conocimiento
+
+        return await asyncio.to_thread(conocimiento.borrar, str(body.get("fuente", "")))
+
+    @app.post("/api/conocimiento/buscar")
+    async def conocimiento_buscar(body: dict):
+        from lay_core import conocimiento
+
+        return {"fragmentos": await asyncio.to_thread(conocimiento.buscar, str(body.get("pregunta", "")), 5)}
+
+    # ---------- permisos de Windows / modo administrador (solo desde este panel, nunca desde la IA) ----------
+    @app.get("/api/permisos")
+    async def permisos_api():
+        from lay_core import permisos
+
+        return await asyncio.to_thread(permisos.estado)
+
+    @app.post("/api/permisos")
+    async def permisos_accion(body: dict):
+        from lay_core import permisos
+
+        acciones = {
+            "activar": permisos.activar_modo_admin,
+            "desactivar": permisos.desactivar_modo_admin,
+            "ahora": permisos.reiniciar_como_admin,
+        }
+        fn = acciones.get(str(body.get("accion")))
+        if not fn:
+            raise HTTPException(400, "acción desconocida")
+        return await asyncio.to_thread(fn)
+
+    # ---------- gestor de modelos (tipo Alpaca) ----------
+    @app.get("/api/modelos")
+    async def modelos_api():
+        from lay_core import ia_local
+
+        return {
+            "instalados": await asyncio.to_thread(ia_local.modelos_detalle),
+            "sugeridos": ia_local.SUGERIDOS,
+            "activo": ia_local.activo(),
+            "en_uso": cfg.CONFIG.ia.get("modelos", {}),
+        }
+
+    @app.post("/api/modelos/descargar")
+    async def modelos_descargar(body: dict):
+        from lay_core import ia_local
+
+        nombre = str(body.get("nombre", "")).strip()
+        if not re.fullmatch(r"[\w.\-/:]{2,80}", nombre):
+            raise HTTPException(400, "Nombre de modelo no válido (ej.: qwen2.5:7b)")
+        bucle = asyncio.get_running_loop()
+
+        def avisar(etapa: str, pct: float, texto: str) -> None:
+            asyncio.run_coroutine_threadsafe(
+                difundir({"tipo": "ia.progreso", "etapa": etapa, "pct": round(pct, 1), "texto": texto}), bucle
+            )
+
+        def correr():
+            try:
+                ia_local.iniciar()
+                ia_local.descargar_modelo(nombre, avisar)
+                avisar(f"modelo:{nombre}", 100, f"{nombre} listo")
+            except Exception as exc:  # noqa: BLE001
+                avisar("error", 0, str(exc)[:200])
+
+        threading.Thread(target=correr, daemon=True).start()
+        return {"ok": True, "descargando": nombre}
+
+    @app.post("/api/modelos/borrar")
+    async def modelos_borrar(body: dict):
+        from lay_core import ia_local
+
+        return await asyncio.to_thread(ia_local.borrar_modelo, str(body.get("nombre", "")))
+
+    @app.post("/api/modelos/usar")
+    async def modelos_usar(body: dict):
+        """Usa ese modelo de Ollama para conversar (rápido/normal/profundo o los tres)."""
+        nombre = str(body.get("nombre", "")).strip()
+        niveles = body.get("niveles") or ["rapido", "normal", "profundo"]
+        modelos = {
+            **cfg.CONFIG.ia.get("modelos", {}),
+            "ollama": {**cfg.CONFIG.ia.get("modelos", {}).get("ollama", {}), **dict.fromkeys(niveles, nombre)},
+        }
+        cfg.guardar({"ia": {"proveedor": "ollama", "modelos": modelos}})
+        await difundir({"tipo": "config.cambiada", "claves": ["ia"]})
+        return {"ok": True, "usando": nombre, "niveles": niveles}
 
     @app.post("/api/ia/preparar")
     async def ia_preparar(body: dict | None = None):

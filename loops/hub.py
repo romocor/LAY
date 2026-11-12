@@ -229,8 +229,41 @@ async def manejar_evento_overlay(ev: dict) -> None:
     await difundir(ev)
 
 
+# ---------- modo chat: historial de la conversación (también en ~/.lay/chat.jsonl) ----------
+_chat: list[dict] = []
+
+
+def _guardar_chat(ev: dict) -> None:
+    from lay_core.config import DATA_DIR
+
+    m = {k: ev.get(k) for k in ("rol", "texto", "via", "entendido", "segundos", "aprendio")}
+    m["t"] = int(__import__("time").time())
+    _chat.append(m)
+    del _chat[:-300]
+    try:
+        with (DATA_DIR / "chat.jsonl").open("a", encoding="utf-8") as f:
+            f.write(json.dumps(m, ensure_ascii=False) + "\n")
+    except OSError:
+        pass
+
+
+def historial_chat(n: int = 80) -> list[dict]:
+    if not _chat:
+        from lay_core.config import DATA_DIR
+
+        try:
+            lineas = (DATA_DIR / "chat.jsonl").read_text(encoding="utf-8").splitlines()[-300:]
+            _chat.extend(json.loads(x) for x in lineas if x.strip())
+        except (OSError, ValueError):
+            pass
+    return _chat[-n:]
+
+
 @app.post("/evento")
 async def evento(ev: dict):
+    if ev.get("tipo") == "chat.mensaje":
+        historial_chat(1)  # carga lo anterior una vez
+        _guardar_chat(ev)
     if str(ev.get("tipo", "")).startswith(("camara.", "gesto.propio", "gestos.entrenar")):
         await manejar_evento_overlay(ev)
     else:

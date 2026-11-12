@@ -107,6 +107,18 @@ def lanzador(a: argparse.Namespace) -> None:
 
     from lay_core.config import CONFIG, HUB_URL
 
+    # Relevo: una copia elevada (modo administrador) pide a la actual que se cierre y toma su lugar
+    if getattr(a, "relevo", False):
+        from lay_core import bus
+
+        bus.publicar("lay.salir")
+        fin = time.time() + 20
+        while time.time() < fin:
+            try:
+                httpx.get(f"{HUB_URL}/api/ping", timeout=1)
+                time.sleep(0.5)
+            except httpx.HTTPError:
+                break
     # Una sola instancia: si LAY ya está abierto, solo se trae al frente
     try:
         httpx.get(f"{HUB_URL}/api/ping", timeout=1)
@@ -172,6 +184,22 @@ def lanzador(a: argparse.Namespace) -> None:
                 ventana.restore()
 
         ventana = webview.create_window("LAY", HUB_URL, fullscreen=True, background_color="#020b11", js_api=Api())
+
+        def escuchar_salida():
+            """'lay.salir' (otra copia de LAY, p. ej. la de administrador, toma el relevo) -> cerrar esta."""
+            from websockets.sync.client import connect
+
+            url = f"ws://{CONFIG.hub_host}:{CONFIG.hub_port}/ws?tipos=lay."
+            while True:
+                try:
+                    with connect(url) as ws:
+                        for _ in ws:
+                            ventana.destroy()
+                            return
+                except Exception:  # noqa: BLE001
+                    time.sleep(3)
+
+        threading.Thread(target=escuchar_salida, daemon=True).start()
         icono = bandeja.iniciar_bandeja(
             {
                 "abrir": lambda: ventana.restore(),
@@ -218,6 +246,7 @@ def main() -> None:
     ap.add_argument("--sin-camara", action="store_true")
     ap.add_argument("--texto", action="store_true")
     ap.add_argument("--version", action="store_true")
+    ap.add_argument("--relevo", action="store_true", help=argparse.SUPPRESS)
     a, resto = ap.parse_known_args()
     if a.version:
         print(f"LAY {_version()}")

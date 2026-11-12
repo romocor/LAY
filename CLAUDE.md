@@ -23,6 +23,11 @@ lay_core/        ÚNICA implementación de capacidades
   procesos.py    relanzar roles + TODO subprocess sin ventana de cmd (sin_consolas)
   gestos_propios.py gestos que Robert entrena (puntos normalizados + vecino más cercano)
   nucleo/        LAY Núcleo: IA propia desde cero (numpy), órdenes al instante
+  nucleo/aprendizaje.py  aprende frases de Robert, correcciones, atajos de voz, reentreno en fondo
+  musica.py      Spotify (ID + URI + verificación + botón) y YouTube (primer video)
+  conocimiento.py libros/documentos/fotos (RAG local BM25 + embeddings incrementales)
+  personalidades.py tono de LAY (presets + propias con ejemplos); nunca cambia reglas
+  permisos.py    restricciones de Windows + modo administrador (solo desde la UI, nunca la IA)
   cerebro.py     bucle agente con cualquier proveedor (historial neutro) + candado de confirmación
   bus.py         publicar eventos al hub
 lay_mcp/server.py  ÚNICA lista de herramientas (MCP stdio o HTTP)

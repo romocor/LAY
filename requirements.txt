@@ -12,6 +12,7 @@ websockets>=12
 pyautogui>=0.9.54
 pygetwindow>=0.0.9
 pyperclip>=1.8
+pypdf>=4.0  # leer libros PDF para el conocimiento de LAY
 screeninfo>=0.8
 mss>=9.0
 pywebview>=5.0

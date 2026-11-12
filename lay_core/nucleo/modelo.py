@@ -22,8 +22,21 @@ RUTA = Path(__file__).with_name("modelo_nucleo.npz")
 RELLENO = re.compile(r"^(oye |hey |hola |ok |okay )?(lay|ley|lei)\b[ ,]*|\b(por favor|porfa)\b", re.I)
 
 
+# Lo que el reconocimiento de voz suele escribir mal -> la palabra correcta (se aplica SIEMPRE,
+# así la consulta que llega a Spotify/YouTube sale limpia: "en espotify" ya no se busca como canción)
+VOZ_CORRECTA = [
+    (r"\b(e?spoti(fai|fy|fi)?|espotify|el spotify)\b", "spotify"),
+    (r"\b(yutu(be?|b)?|youtub|you tube|el youtube)\b", "youtube"),
+    (r"\b(guasap|wasap|whatsap)\b", "whatsapp"),
+    (r"\b(gugel|gugle)\b", "google"),
+    (r"\bpone\b", "pon"),
+]
+
+
 def normalizar(t: str) -> str:
     t = unicodedata.normalize("NFKD", t.lower()).encode("ascii", "ignore").decode()
+    for patron, bien in VOZ_CORRECTA:
+        t = re.sub(patron, bien, t)
     t = RELLENO.sub(" ", t)
     t = re.sub(r"[^a-z0-9ñ:.% ]+", " ", t)
     return re.sub(r"\s+", " ", t).strip()
@@ -76,29 +89,50 @@ class Modelo:
         orden = np.argsort(p)[::-1]
         return self.etiquetas[orden[0]], float(p[orden[0]]), self.etiquetas[orden[1]], float(p[orden[1]])
 
-    def guardar(self, ruta: Path = RUTA) -> None:
-        np.savez_compressed(ruta, W=self.W.astype(np.float16), b=self.b, etiquetas=np.array(self.etiquetas))
+    def guardar(self, ruta: Path = RUTA, huella: str | None = None) -> None:
+        if huella is None:
+            from lay_core.nucleo.aprendizaje import huella_datos
+
+            huella = huella_datos()
+        np.savez_compressed(
+            ruta, W=self.W.astype(np.float16), b=self.b, etiquetas=np.array(self.etiquetas), huella=np.array(huella)
+        )
+
+    @staticmethod
+    def _leer(r: Path) -> tuple["Modelo", str]:
+        d = np.load(r, allow_pickle=False)
+        huella = str(d["huella"]) if "huella" in d.files else ""
+        return Modelo(d["W"].astype(np.float32), d["b"].astype(np.float32), [str(x) for x in d["etiquetas"]]), huella
 
     @classmethod
     def cargar(cls, ruta: Path | None = None) -> "Modelo":
-        """Carga el modelo empaquetado; si falta o está dañado, lo entrena (unos 10 s) y lo guarda en ~/.lay."""
-        import os
-
-        local = Path(os.getenv("LAY_DATA", Path.home() / ".lay")) / "nucleo" / "modelo_nucleo.npz"
-        for r in [ruta] if ruta else [RUTA, local]:
-            try:
-                d = np.load(r, allow_pickle=False)
-                return cls(d["W"].astype(np.float32), d["b"].astype(np.float32), [str(x) for x in d["etiquetas"]])
-            except Exception:  # noqa: BLE001 — se reentrena abajo
-                continue
+        """Prioridad: modelo PERSONAL (~/.lay, aprendió de Robert) si corresponde a esta versión de LAY ->
+        el de fábrica -> el personal aunque sea viejo -> entrenar ahora (unos 15 s)."""
         if ruta:
-            raise FileNotFoundError(ruta)
+            return cls._leer(ruta)[0]
+        from lay_core.nucleo import aprendizaje
+        from lay_core.nucleo.aprendizaje import huella_datos
+
+        local = aprendizaje.CARPETA / "modelo_nucleo.npz"
+        actual = huella_datos()
+        leidos = {}
+        for r in (local, RUTA):
+            try:
+                leidos[r] = cls._leer(r)
+            except Exception:  # noqa: BLE001
+                continue
+        if local in leidos and leidos[local][1] == actual:
+            return leidos[local][0]
+        if RUTA in leidos:
+            return leidos[RUTA][0]
+        if local in leidos:
+            return leidos[local][0]
         from lay_core.nucleo import datos
 
         m = entrenar(datos.generar())
         try:
             local.parent.mkdir(parents=True, exist_ok=True)
-            m.guardar(local)
+            m.guardar(local, actual)
         except OSError:
             pass
         return m

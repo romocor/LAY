@@ -122,6 +122,23 @@ class Cerebro:
 
     # ---------------- conversación ----------------
     def responder(self, texto: str, al_texto=None) -> str:
+        """Igual que _responder, pero deja la conversación visible en el modo chat del HUD."""
+        self._via, self._aprendio, self._entendido = None, False, None
+        bus.publicar("chat.mensaje", rol="usuario", texto=texto[:2000])
+        t0 = time.time()
+        respuesta = self._responder(texto, al_texto)
+        bus.publicar(
+            "chat.mensaje",
+            rol="lay",
+            texto=respuesta[:4000],
+            via=self._via,
+            entendido=getattr(self, "_entendido", None),
+            segundos=round(time.time() - t0, 1),
+            aprendio=self._aprendio,
+        )
+        return respuesta
+
+    def _responder(self, texto: str, al_texto=None) -> str:
         """Responde a Robert. `al_texto(trozo)` recibe el texto en streaming para que
         la voz empiece a hablar antes de que termine la respuesta completa."""
         self.ultimo_usuario = texto
@@ -166,6 +183,7 @@ class Cerebro:
                             else prov.nombre
                         )
                     bus.publicar("hud.modelo", nivel=p.nivel, modelo=modelo, proveedor=nombre)
+                    self._via = f"{nombre}:{modelo}"
                     return self._bucle(prov, p, texto, al_texto)
                 except _Escalar:
                     self.historial = list(snapshot)
@@ -185,9 +203,19 @@ class Cerebro:
             from lay_core import nucleo
 
             c = nucleo.entender(texto)
+            self._entendido = {"intencion": c.intencion, "confianza": round(c.confianza, 2)}
             return c.intencion not in ("charla", "confirmar", "negar") and c.confianza >= nucleo.UMBRAL
         except Exception:
             return False
+
+    def _aprender(self, texto: str, herramienta: str, resultado: str) -> None:
+        """El Núcleo no entendió, la IA grande sí y funcionó: el Núcleo aprende esa frase."""
+        try:
+            from lay_core.nucleo import aprendizaje
+
+            self._aprendio = aprendizaje.aprender_de_herramienta(texto, herramienta, json.loads(resultado))
+        except Exception:  # noqa: BLE001 — aprender nunca debe romper una respuesta
+            pass
 
     def _ejecutar_confirmada(self, al_texto) -> str:
         nombre, args = self.llamada_pendiente
@@ -238,6 +266,14 @@ class Cerebro:
             nombre=CONFIG.nombre, usuario=getattr(CONFIG, "usuario", "Robert"), ahora=time.strftime("%A %d/%m/%Y %H:%M")
         )
         try:
+            from lay_core import conocimiento, personalidades
+
+            sistema += personalidades.instrucciones()
+            if prov.nombre not in ("nucleo", "falso"):
+                sistema += conocimiento.contexto_para(texto)  # libros y documentos que Robert le dio
+        except Exception:  # noqa: BLE001
+            pass
+        try:
             from lay_core import memoria
 
             recuerdos = memoria.contexto_para(texto)
@@ -266,6 +302,8 @@ class Cerebro:
                     resultado = json.dumps({"error": f"La herramienta '{c.nombre}' no existe aquí."})
                 else:
                     resultado = self._ejecutar(c.nombre, c.args)
+                    if prov.nombre not in ("nucleo", "falso") and not self._aprendio:
+                        self._aprender(texto, c.nombre, resultado)
                 self.historial.append({"rol": "herramienta", "id": c.id, "nombre": c.nombre, "contenido": resultado})
         if router.escalar(perfil):
             raise _Escalar()

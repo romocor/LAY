@@ -77,3 +77,24 @@ def test_nucleo_entiende_ordenes_de_musica_y_apps(frase, herramienta, args):
     assert llamadas[0][0] == herramienta
     for k, v in args.items():
         assert llamadas[0][1][k] == v
+
+
+@pytest.mark.parametrize(
+    "frase,consulta,extra",
+    [
+        ("pon nadie sabe en espotify", "nadie sabe", {}),
+        ("reproduce bad bunny en spoti", "bad bunny", {}),
+        ("pone despacito", "despacito", {}),
+        ("ponte la de bad bunny", "bad bunny", {}),
+        ("quiero oír soda stereo", "soda stereo", {}),
+        ("reproducir la flaca en spotify", "la flaca", {}),
+        ("ponme la playlist de gimnasio", "gimnasio", {"tipo": "playlist"}),
+        ("pon el disco un verano sin ti", "un verano sin ti", {"tipo": "album"}),
+        ("abre spotify y pon bad bunny por favor", "bad bunny", {}),
+    ],
+)
+def test_voz_mal_transcrita_y_consulta_limpia(frase, consulta, extra):
+    """Lo que llega a Spotify es SOLO la canción: sin 'en espotify', 'pone', 'quiero oír'…"""
+    llamadas, _ = nucleo.plan(nucleo.entender(frase))
+    assert llamadas[0][0] == "spotify_reproducir"
+    assert llamadas[0][1] == {"consulta": consulta, **extra}

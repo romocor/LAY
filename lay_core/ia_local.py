@@ -220,6 +220,50 @@ def descargar_modelo(nombre: str, progreso: Progreso = _nada) -> None:
                 progreso(f"modelo:{nombre}", 100 if ev["status"] == "success" else 0, f"{nombre}: {ev['status']}")
 
 
+# Gestor de modelos (lo que hace Alpaca en Linux, dentro de LAY): sugeridos por uso y RAM
+SUGERIDOS = [
+    {"nombre": "qwen2.5:3b", "para": "Conversar rápido en español (laptops de 8 GB)", "gb": 1.9},
+    {"nombre": "qwen2.5:7b", "para": "Conversación más inteligente (16 GB de RAM)", "gb": 4.7},
+    {"nombre": "llama3.2:3b", "para": "Alternativa ligera de Meta", "gb": 2.0},
+    {"nombre": "gemma3:4b", "para": "Conversa y además entiende fotos", "gb": 3.3},
+    {"nombre": "mistral-nemo", "para": "Charla larga y creativa (16 GB+)", "gb": 7.1},
+    {"nombre": "dolphin3", "para": "Comunitario, con menos filtros de estilo (8 GB)", "gb": 4.9},
+    {"nombre": "moondream", "para": "Visión ligera: describir tus fotos para el conocimiento", "gb": 1.7},
+    {"nombre": "nomic-embed-text", "para": "Búsqueda por significado en tus libros y documentos", "gb": 0.3},
+]
+
+
+def modelos_detalle() -> list[dict]:
+    try:
+        datos = httpx.get(f"{OLLAMA}/api/tags", timeout=4).json().get("models", [])
+    except (httpx.HTTPError, ValueError):
+        return []
+    return [
+        {
+            "nombre": m["name"],
+            "gb": round(m.get("size", 0) / 1e9, 1),
+            "familia": (m.get("details") or {}).get("family", ""),
+            "parametros": (m.get("details") or {}).get("parameter_size", ""),
+        }
+        for m in datos
+    ]
+
+
+def borrar_modelo(nombre: str) -> dict:
+    if (
+        nombre.split(":")[0] in ("lay", "lay-rapido")
+        and len([m for m in modelos_instalados() if m.startswith("lay")]) <= 1
+    ):
+        return {"error": "Ese es el modelo de LAY; si lo borras, LAY se queda sin IA local."}
+    try:
+        r = httpx.request("DELETE", f"{OLLAMA}/api/delete", json={"model": nombre}, timeout=30)
+        if r.status_code >= 400:
+            return {"error": f"Ollama no pudo borrar {nombre}: {r.text[:120]}"}
+    except httpx.HTTPError as exc:
+        return {"error": f"Ollama no responde: {exc}"}
+    return {"ok": True, "borrado": nombre}
+
+
 def estado() -> dict:
     hw = hardware()
     rec = recomendar(hw)
